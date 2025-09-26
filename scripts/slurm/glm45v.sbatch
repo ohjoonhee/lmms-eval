@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=28
 #SBATCH -o logs/%x_%j.log
 #SBATCH --time=1-00:00:00
-#SBATCH --account=joonhee
+#SBATCH --account=gpu
 
 set -x
 
