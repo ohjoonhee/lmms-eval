@@ -74,6 +74,7 @@ dependencies = [
     "protobuf",
     "sentence_transformers",
     "python-dotenv",
+    "vllm>=0.10.2",
 ]
 
 [project.optional-dependencies]
