@@ -16,9 +16,10 @@ export TASKS="hrbench"
 
 python3 -m accelerate.commands.launch \
     --num_processes=1 \
+    --num_cpu_threads_per_process=28 \
     -m lmms_eval \
     --model vllm \
-    --model_args model="zai-org/GLM-4.5V-FP8",gpu_memory_utilization=0.90,dtype=bfloat16,max_model_len=32768 \
+    --model_args model="zai-org/GLM-4.5V-FP8",gpu_memory_utilization=0.90,dtype=bfloat16,max_model_len=8192 \
     --tasks $TASKS \
     --batch_size 64 \
     --log_samples \
