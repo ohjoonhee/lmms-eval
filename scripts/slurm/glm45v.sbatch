@@ -6,6 +6,9 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
 #SBATCH -o logs/%x_%j.log
+#SBATCH --time=1-00:00:00
+
+set -x
 
 export OUTPUT_DIR="outputs/hrbench_glm45v"
 export TASKS="hrbench"
