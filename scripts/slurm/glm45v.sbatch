@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -J launch
 #SBATCH -p gpu-1farm
-#SBATCH --gres=gpu:h100:1
+#SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=28
