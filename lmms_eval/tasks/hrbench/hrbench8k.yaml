@@ -7,6 +7,7 @@ test_split: hrbench_8k
 output_type: generate_until
 doc_to_visual: !function utils.hrbench_doc_to_visual
 doc_to_text: !function utils.hrbench_doc_to_text
+doc_to_messages: !function utils.hrbench_doc_to_messages
 doc_to_target: "answer"
 # The return value of process_results will be used by metrics
 process_results: !function utils.hrbench_process_results

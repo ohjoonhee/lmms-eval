@@ -27,6 +27,16 @@ with open(Path(__file__).parent / "hrbench.yaml", "r") as f:
 
 hrbench_evaluator = HRBenchEval(api_key=os.getenv("OPENAI_API_KEY", "YOUR_API_KEY"), gpt_model=os.getenv("MODEL_VERSION", "gpt-4o-2024-11-20"), max_workers=config["metadata"]["max_workers"])
 
+THINKING_SYSTEM_PROMPT = """
+You are an AI assistant that rigorously follows this response protocol:
+
+1. First, conduct a detailed analysis of the question. Consider different angles, potential solutions, and reason through the problem step-by-step. Enclose this entire thinking process within <think> and </think> tags.
+
+2. After the thinking section, provide a clear, concise, and direct answer to the user's question. Separate the answer from the think section with a newline.
+
+Ensure that the thinking process is thorough but remains focused on the query. The final answer should be standalone and not reference the thinking section.
+""".strip()
+
 
 def decode_base64_to_image(base64_string, target_size=-1):
     image_data = base64.b64decode(base64_string)
@@ -53,8 +63,32 @@ def hrbench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     for key, item in options.items():
         options_prompt += f"{key}. {item}\n"
     prompt = ""
-    prompt += f"{question}\n{options_prompt}Answer the option letter directly."
+    # prompt += f"{question}\n{options_prompt}Answer the option letter directly."
+    prompt += f"{question}\n{options_prompt}"
     return prompt
+
+
+def hrbench_doc_to_messages(doc):
+    """
+    Convert a document to a list of messages with proper typing.
+    Supports interleaved text, images, videos, and audio.
+    """
+    messages = []
+
+    # Add system message if needed
+    messages.append({"role": "system", "content": [{"type": "text", "text": THINKING_SYSTEM_PROMPT}]})
+
+    # Add user message with multimodal content
+    image = hrbench_doc_to_visual(doc)[0]
+    user_content = []
+    user_content.append({"type": "image", "url": image})
+
+    prompt = hrbench_doc_to_text(doc)
+    user_content.append({"type": "text", "text": prompt})
+
+    messages.append({"role": "user", "content": user_content})
+
+    return messages
 
 
 def hrbench_process_results(doc, results):
