@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=28
+#SBATCH --cpus-per-task=112
 #SBATCH -o logs/%x_%j.log
 #SBATCH --account=gpu
 

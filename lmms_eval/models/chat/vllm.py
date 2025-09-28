@@ -145,9 +145,9 @@ class VLLM(VLLMSimple):
         for metric in metrics:
             name = metric.name
             if "time_to_first_token" in name:
-                ttft = metric.sum / metric.count
+                ttft = metric.sum / metric.count if metric.count > 0 else 0  # When there's no "Not cached requests", count can be 0
             if "time_per_output_token_seconds" in name:
-                tpot = metric.sum / metric.count
+                tpot = metric.sum / metric.count if metric.count > 0 else 0  # When there's no "Not cached requests", count can be 0
             if name == "vllm:generation_tokens":
                 generation_tokens = metric.value
 
