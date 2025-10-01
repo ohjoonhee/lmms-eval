@@ -75,6 +75,8 @@ dependencies = [
     "sentence_transformers",
     "python-dotenv",
     "vllm>=0.10.2",
+    "flask>=3.1.2",
+    "matplotlib>=3.9.4",
 ]
 
 [project.optional-dependencies]

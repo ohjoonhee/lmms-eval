@@ -5,6 +5,8 @@ dataset_kwargs:
 task: "hrbench4k"
 test_split: hrbench_4k
 output_type: generate_until
+generation_kwargs:
+  max_new_tokens: 8192
 doc_to_visual: !function utils.hrbench_doc_to_visual
 doc_to_text: !function utils.hrbench_doc_to_text
 doc_to_messages: !function utils.hrbench_doc_to_messages
@@ -22,3 +24,16 @@ metric_list:
   - metric: average
     aggregation: !function utils.hrbench_aggregate_results
     higher_is_better: true
+    
+lmms_eval_specific_kwargs:
+  default:
+    system_prompt: |
+      You are an AI assistant that rigorously follows this response protocol:
+
+      1. First, conduct a detailed analysis of the question. Consider different angles, potential solutions, and reason through the problem step-by-step. Enclose this entire thinking process within <think> and </think> tags.
+
+      2. After the thinking section, provide a clear, concise, and direct answer to the user's question. Separate the answer from the think section with a newline.
+
+      Ensure that the thinking process is thorough but remains focused on the query. The final answer should be standalone and not reference the thinking section.
+    pre_prompt: ""
+    post_prompt: ""

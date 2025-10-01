@@ -54,3 +54,5 @@ remote_code/*
 # Profiling files
 *.prof
 tmp
+
+notebooks/**/*.jsonl

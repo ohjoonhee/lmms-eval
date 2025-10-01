@@ -43,10 +43,37 @@ def vstar_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     return question
 
 
+def vstar_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
+    """Convert document to messages for chat-based models."""
+    # TODO: support pre_prompt and post_prompt
+    imgs = vstar_doc_to_visual(doc)
+    question = vstar_doc_to_text(doc, lmms_eval_specific_kwargs)
+
+    # Remove any instruction to answer with option letter directly
+    question = question.replace("Answer with the option's letter from the given choices directly.", "").strip()
+
+    messages = []
+    if "system_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["system_prompt"]:
+        system_prompt = lmms_eval_specific_kwargs["system_prompt"]
+        messages.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
+
+    user_content = []
+    for img in imgs:
+        user_content.append({"type": "image", "url": img})
+    user_content.append({"type": "text", "text": question})
+
+    messages.append({"role": "user", "content": user_content})
+
+    return messages
+
+
 def extract_answer_letter(response):
     """Extract the answer letter from model response."""
     # Clean the response
     response = response.strip().upper()
+
+    # Clean the <think> tags if present
+    response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL).strip()
 
     # Try to find patterns like "A", "(A)", "A.", "A)", "Answer: A", etc.
     patterns = [
@@ -101,6 +128,7 @@ def vstar_process_results(doc, results):
     # Log for debugging
     if score == 0:
         eval_logger.debug(f"Question: {doc['text'][:100]}...")
+        eval_logger.debug(f"Model response: {pred}")
         eval_logger.debug(f"Predicted: {pred_letter}, Ground Truth: {gt_letter}")
         eval_logger.debug(f"Raw prediction: {pred}")
 

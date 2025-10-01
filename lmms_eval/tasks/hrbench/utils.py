@@ -27,15 +27,15 @@ with open(Path(__file__).parent / "hrbench.yaml", "r") as f:
 
 hrbench_evaluator = HRBenchEval(api_key=os.getenv("OPENAI_API_KEY", "YOUR_API_KEY"), gpt_model=os.getenv("MODEL_VERSION", "gpt-4o-2024-11-20"), max_workers=config["metadata"]["max_workers"])
 
-THINKING_SYSTEM_PROMPT = """
-You are an AI assistant that rigorously follows this response protocol:
+# THINKING_SYSTEM_PROMPT = """
+# You are an AI assistant that rigorously follows this response protocol:
 
-1. First, conduct a detailed analysis of the question. Consider different angles, potential solutions, and reason through the problem step-by-step. Enclose this entire thinking process within <think> and </think> tags.
+# 1. First, conduct a detailed analysis of the question. Consider different angles, potential solutions, and reason through the problem step-by-step. Enclose this entire thinking process within <think> and </think> tags.
 
-2. After the thinking section, provide a clear, concise, and direct answer to the user's question. Separate the answer from the think section with a newline.
+# 2. After the thinking section, provide a clear, concise, and direct answer to the user's question. Separate the answer from the think section with a newline.
 
-Ensure that the thinking process is thorough but remains focused on the query. The final answer should be standalone and not reference the thinking section.
-""".strip()
+# Ensure that the thinking process is thorough but remains focused on the query. The final answer should be standalone and not reference the thinking section.
+# """.strip()
 
 
 def decode_base64_to_image(base64_string, target_size=-1):
@@ -68,15 +68,17 @@ def hrbench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     return prompt
 
 
-def hrbench_doc_to_messages(doc):
+def hrbench_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
     """
     Convert a document to a list of messages with proper typing.
     Supports interleaved text, images, videos, and audio.
     """
     messages = []
 
-    # Add system message if needed
-    messages.append({"role": "system", "content": [{"type": "text", "text": THINKING_SYSTEM_PROMPT}]})
+    if lmms_eval_specific_kwargs:
+        if "system_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["system_prompt"]:
+            # Add system message if needed
+            messages.append({"role": "system", "content": [{"type": "text", "text": lmms_eval_specific_kwargs["system_prompt"]}]})
 
     # Add user message with multimodal content
     image = hrbench_doc_to_visual(doc)[0]
@@ -100,17 +102,46 @@ def hrbench_process_results(doc, results):
         a dictionary with key: metric name, value: metric value
     """
     pred = results[0].strip()
-    gt = doc["answer"]
-    options = hrbench_doc_to_options(doc)
-    question = doc["question"]
-    resp_dic = hrbench_evaluator.get_chat_response({"question": question, "options": options, "prediction": pred})
-    gpt_prediction = resp_dic["gpt_prediction"]
-    category = doc["category"]
-    cycle_category = doc["cycle_category"]
 
-    gpt_score = 0
-    if gt.lower() == gpt_prediction.lower():
-        gpt_score = 1
+    if "<think>" in pred and "</think>" in pred:
+        # parse the <think> tags and remove from the prediction with regex
+        start_idx = pred.index("<think>")
+        end_idx = pred.index("</think>") + len("</think>")
+        think_section = pred[start_idx:end_idx]
+        pred = pred.replace(think_section, "").strip()
+
+        gt = doc["answer"]
+        options = hrbench_doc_to_options(doc)
+        question = doc["question"]
+        resp_dic = hrbench_evaluator.get_chat_response({"question": question, "options": options, "prediction": pred})
+        gpt_prediction = resp_dic["gpt_prediction"]
+        category = doc["category"]
+        cycle_category = doc["cycle_category"]
+
+        gpt_score = 0
+        if gt.lower() == gpt_prediction.lower():
+            gpt_score = 1
+    elif "<think>" in pred and "</think>" not in pred:  # handle unclosed tag
+        gt = doc["answer"]
+        options = hrbench_doc_to_options(doc)
+        question = doc["question"]
+        gpt_prediction = "None"
+        category = doc["category"]
+        cycle_category = doc["cycle_category"]
+
+        gpt_score = 0
+    else:
+        gt = doc["answer"]
+        options = hrbench_doc_to_options(doc)
+        question = doc["question"]
+        resp_dic = hrbench_evaluator.get_chat_response({"question": question, "options": options, "prediction": pred})
+        gpt_prediction = resp_dic["gpt_prediction"]
+        category = doc["category"]
+        cycle_category = doc["cycle_category"]
+
+        gpt_score = 0
+        if gt.lower() == gpt_prediction.lower():
+            gpt_score = 1
 
     return {category: {"index": doc["index"], "cycle_category": cycle_category, "gpt_score": gpt_score}, "average": {"index": doc["index"], "cycle_category": cycle_category, "gpt_score": gpt_score}}
 
