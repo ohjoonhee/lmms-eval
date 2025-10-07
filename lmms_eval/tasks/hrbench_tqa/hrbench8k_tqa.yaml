@@ -1,8 +1,7 @@
-dataset_path: DreamMr/HR-Bench
-dataset_name: hrbench_version_split
+dataset_path: ohjoonhee/HR-Bench-with-captions
 dataset_kwargs:
   token: True
-task: "hrbench8k"
+task: "hrbench8k_tqa"
 test_split: hrbench_8k
 output_type: generate_until
 doc_to_visual: !function utils.hrbench_doc_to_visual

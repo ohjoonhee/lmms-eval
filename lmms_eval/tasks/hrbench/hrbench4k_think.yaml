@@ -2,8 +2,8 @@ dataset_path: DreamMr/HR-Bench
 dataset_name: hrbench_version_split
 dataset_kwargs:
   token: True
-task: "hrbench8k"
-test_split: hrbench_8k
+task: "hrbench4k_think"
+test_split: hrbench_4k
 output_type: generate_until
 doc_to_visual: !function utils.hrbench_doc_to_visual
 doc_to_text: !function utils.hrbench_doc_to_text
@@ -22,9 +22,16 @@ metric_list:
   - metric: average
     aggregation: !function utils.hrbench_aggregate_results
     higher_is_better: true
-
+    
 lmms_eval_specific_kwargs:
   default:
-    system_prompt: ""
+    system_prompt: |
+      You are an AI assistant that rigorously follows this response protocol:
+
+      1. First, conduct a detailed analysis of the question. Consider different angles, potential solutions, and reason through the problem step-by-step. Enclose this entire thinking process within <think> and </think> tags.
+
+      2. After the thinking section, provide a clear, concise, and direct answer to the user's question. Separate the answer from the think section with a newline.
+
+      Ensure that the thinking process is thorough but remains focused on the query. The final answer should be standalone and not reference the thinking section.
     pre_prompt: ""
     post_prompt: ""

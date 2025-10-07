@@ -32,7 +32,7 @@ HF_DATASET = None  # datasets.Dataset
 HF_IMAGE_COL = None  # str
 HF_LENGTH = 0  # int
 
-# In-memory thumbnail cache: { recno: (bytes, mimetype) }
+# In-memory thumbnail cache: { doc_id: (bytes, mimetype) }
 THUMB_CACHE = {}
 THUMB_MAX = 512  # max side in pixels (configurable via argparse)
 
@@ -46,6 +46,7 @@ def iter_jsonl(path):
     """
     Read JSONL line-by-line. Yield both parse-success and parse-failure lines.
     Empty lines are skipped. We attach a 0-based 'recno' to align with the HF dataset index.
+    NOTE: 'recno' is only the file-order index; image lookup now uses 'doc_id' from the item itself.
     """
     recno = 0
     with open(path, "r", encoding="utf-8") as f:
@@ -160,7 +161,7 @@ def build_chips(data, max_len=40):
     """Build short summary chips for common keys."""
     if not isinstance(data, dict):
         return []
-    keys = ["id", "image_id", "filename", "file", "path", "label", "category", "class", "prompt", "question", "answer", "caption", "text"]
+    keys = ["id", "doc_id", "image_id", "filename", "file", "path", "label", "category", "class", "prompt", "question", "answer", "caption", "text"]
     chips = []
     for k in keys:
         if k in data:
@@ -193,7 +194,7 @@ def common_query_args():
     return q, sort_key, page_size, compact
 
 
-# -------- Templates --------
+# -------- Templates (updated to use doc_id) --------
 PAGE_TMPL = r"""
 <!doctype html>
 <html lang="en">
@@ -349,10 +350,10 @@ PAGE_TMPL = r"""
       {% if item.has_image %}
         <div class="section-title">Image (click to enlarge)</div>
         <div class="imgbox thumb">
-          <a href="{{ url_for('serve_image', recno=item.recno) }}" class="lb" data-src="{{ url_for('serve_image', recno=item.recno) }}">
-            <img src="{{ url_for('serve_thumb', recno=item.recno) }}" alt="image #{{ item.recno }}" loading="lazy">
+          <a href="{{ url_for('serve_image', doc_id=item.doc_id) }}" class="lb" data-src="{{ url_for('serve_image', doc_id=item.doc_id) }}">
+            <img src="{{ url_for('serve_thumb', doc_id=item.doc_id) }}" alt="image for doc_id {{ item.doc_id }}" loading="lazy">
           </a>
-          <div class="imgcap">dataset[{{ item.recno }}].{{ image_col }} • thumbnail (max {{ thumb_max }}px)</div>
+          <div class="imgcap">dataset[{{ item.doc_id }}].{{ image_col }} • thumbnail (max {{ thumb_max }}px)</div>
         </div>
       {% endif %}
 
@@ -536,10 +537,10 @@ DETAIL_TMPL = r"""
     {% if has_image %}
       <div class="section-title">Image</div>
       <div class="imgbox thumb">
-        <a href="{{ url_for('serve_image', recno=recno) }}" class="lb" data-src="{{ url_for('serve_image', recno=recno) }}">
-          <img src="{{ url_for('serve_thumb', recno=recno) }}" alt="image #{{ recno }}" loading="lazy">
+        <a href="{{ url_for('serve_image', doc_id=doc_id) }}" class="lb" data-src="{{ url_for('serve_image', doc_id=doc_id) }}">
+          <img src="{{ url_for('serve_thumb', doc_id=doc_id) }}" alt="image for doc_id {{ doc_id }}" loading="lazy">
         </a>
-        <div class="imgcap">dataset[{{ recno }}].{{ image_col }} • thumbnail (max {{ thumb_max }}px) • click to enlarge</div>
+        <div class="imgcap">dataset[{{ doc_id }}].{{ image_col }} • thumbnail (max {{ thumb_max }}px) • click to enlarge</div>
       </div>
     {% endif %}
 
@@ -599,18 +600,18 @@ Raw: {{ raw }}</pre>
 """
 
 
-# -------- Image helpers --------
-def _get_pil_image(recno: int) -> Image.Image:
+# -------- Image helpers (doc_id-based) --------
+def _get_pil_image(doc_id: int) -> Image.Image:
     """
-    Return PIL.Image for recno from HF dataset.
+    Return PIL.Image for given doc_id from HF dataset.
     Supported types:
       - PIL.Image.Image
       - numpy.ndarray
       - base64-encoded str (data URI supported)
     """
-    if HF_DATASET is None or not (0 <= recno < HF_LENGTH):
+    if HF_DATASET is None or not (0 <= int(doc_id) < HF_LENGTH):
         raise FileNotFoundError("Image not available.")
-    row = HF_DATASET[int(recno)]
+    row = HF_DATASET[int(doc_id)]
     img = row.get(HF_IMAGE_COL)
     if img is None:
         raise FileNotFoundError("Image column is empty.")
@@ -653,17 +654,17 @@ def _encode_image(pil_img: Image.Image, prefer_png: bool = False) -> (bytes, str
     return buf.read(), mimetype
 
 
-def _make_thumbnail_bytes(recno: int, max_side: int) -> (bytes, str):
+def _make_thumbnail_bytes(doc_id: int, max_side: int) -> (bytes, str):
     """
-    Build thumbnail bytes (with in-memory cache).
+    Build thumbnail bytes (with in-memory cache) using doc_id.
     """
-    if recno in THUMB_CACHE:
-        return THUMB_CACHE[recno]
-    img = _get_pil_image(recno)
+    if doc_id in THUMB_CACHE:
+        return THUMB_CACHE[doc_id]
+    img = _get_pil_image(doc_id)
     thumb = img.copy()
     thumb.thumbnail((max_side, max_side))  # keeps aspect ratio
     data, mimetype = _encode_image(thumb, prefer_png=False)
-    THUMB_CACHE[recno] = (data, mimetype)
+    THUMB_CACHE[doc_id] = (data, mimetype)
     return data, mimetype
 
 
@@ -672,6 +673,22 @@ def _send_bytes(data: bytes, mimetype: str, max_age=86400):
     resp.headers["Content-Type"] = mimetype
     resp.headers["Cache-Control"] = f"public, max-age={max_age}"
     return resp
+
+
+def _parse_doc_id_from_data(d) -> int | None:
+    """
+    Safely parse int(doc_id) from a dict-like item. Returns None if missing/invalid.
+    """
+    if not isinstance(d, dict):
+        return None
+    v = d.get("doc_id", None)
+    try:
+        doc_id = int(v)
+        if doc_id < 0:
+            return None
+        return doc_id
+    except Exception:
+        return None
 
 
 # -------- Flask routes --------
@@ -717,26 +734,28 @@ def index():
         pretty = item["raw"]
         resp_text = None
         resp_marked = None
+        doc_id = None
         if item["ok"]:
             try:
                 pretty = json.dumps(item["data"], ensure_ascii=False, indent=2)
             except Exception:
                 pretty = item["raw"]
             d = item["data"]
+            doc_id = _parse_doc_id_from_data(d)
             if isinstance(d, dict):
                 fr = d.get("filtered_resps")
                 if isinstance(fr, list) and len(fr) > 0 and isinstance(fr[0], str):
                     resp_text = fr[0]
                     resp_marked = highlight_text(resp_text, q)
 
-        has_image = (HF_DATASET is not None) and (0 <= item["recno"] < HF_LENGTH)
+        has_image = (HF_DATASET is not None) and (doc_id is not None) and (0 <= int(doc_id) < HF_LENGTH)
         chips = build_chips(item["data"]) if item["ok"] else []
 
         items.append(
             {
                 "index": i,  # 1-based for display
                 "lineno": item["lineno"],
-                "recno": item["recno"],  # 0-based for dataset index
+                "recno": item["recno"],  # keep for reference (not used for image anymore)
                 "ok": item["ok"],
                 "error": item.get("error"),
                 "raw": item["raw"],
@@ -746,6 +765,7 @@ def index():
                 "resp_marked": resp_marked,
                 "has_image": has_image,
                 "chips": chips,
+                "doc_id": doc_id,
             }
         )
 
@@ -802,19 +822,21 @@ def item_detail(index):
     pretty = chosen["raw"]
     resp_text = None
     resp_marked = None
+    doc_id = None
     if chosen["ok"]:
         try:
             pretty = json.dumps(chosen["data"], ensure_ascii=False, indent=2)
         except Exception:
             pretty = chosen["raw"]
         d = chosen["data"]
+        doc_id = _parse_doc_id_from_data(d)
         if isinstance(d, dict):
             fr = d.get("filtered_resps")
             if isinstance(fr, list) and len(fr) > 0 and isinstance(fr[0], str):
                 resp_text = fr[0]
                 resp_marked = highlight_text(resp_text, q)
 
-    has_image = (HF_DATASET is not None) and (0 <= chosen["recno"] < HF_LENGTH)
+    has_image = (HF_DATASET is not None) and (doc_id is not None) and (0 <= int(doc_id) < HF_LENGTH)
 
     meta = file_meta(DATA_PATH)
     return render_template_string(
@@ -830,7 +852,7 @@ def item_detail(index):
         resp_text=resp_text,
         resp_marked=resp_marked,
         has_image=has_image,
-        recno=chosen["recno"],
+        doc_id=doc_id,
         image_col=HF_IMAGE_COL or "image",
         thumb_max=THUMB_MAX,
     )
@@ -842,30 +864,31 @@ def download():
     return send_file(DATA_PATH, as_attachment=True, download_name=os.path.basename(DATA_PATH))
 
 
-@app.route("/image/<int:recno>")
-def serve_image(recno: int):
+# NOTE: routes now take doc_id (NOT recno)
+@app.route("/image/<int:doc_id>")
+def serve_image(doc_id: int):
     """
-    Serve original image for recno from the dataset as PNG/JPEG.
+    Serve original image for given doc_id from the dataset as PNG/JPEG.
     """
-    if HF_DATASET is None or not (0 <= recno < HF_LENGTH):
+    if HF_DATASET is None or not (0 <= int(doc_id) < HF_LENGTH):
         abort(404, description="Image not available.")
     try:
-        pil_img = _get_pil_image(recno)
+        pil_img = _get_pil_image(doc_id)
         data, mimetype = _encode_image(pil_img, prefer_png=False)
         return _send_bytes(data, mimetype)
     except Exception as e:
         abort(500, description=f"Error while processing image: {type(e).__name__}: {e}")
 
 
-@app.route("/thumb/<int:recno>")
-def serve_thumb(recno: int):
+@app.route("/thumb/<int:doc_id>")
+def serve_thumb(doc_id: int):
     """
-    Serve thumbnail image for recno (uses memory cache).
+    Serve thumbnail image for given doc_id (uses memory cache).
     """
-    if HF_DATASET is None or not (0 <= recno < HF_LENGTH):
+    if HF_DATASET is None or not (0 <= int(doc_id) < HF_LENGTH):
         abort(404, description="Image not available.")
     try:
-        data, mimetype = _make_thumbnail_bytes(recno, THUMB_MAX)
+        data, mimetype = _make_thumbnail_bytes(doc_id, THUMB_MAX)
         return _send_bytes(data, mimetype)
     except Exception as e:
         abort(500, description=f"Error while processing thumbnail: {type(e).__name__}: {e}")
@@ -875,7 +898,7 @@ def serve_thumb(recno: int):
 def parse_args():
     ap = argparse.ArgumentParser(description="JSONL + HF image viewer (lightbox/thumbnail/highlight/compact)")
     ap.add_argument("jsonl_path", help="Path to JSONL file")
-    ap.add_argument("--host", default="127.0.0.1", help="Host (default: 127.0.0.1)")
+    ap.add_argument("--host", default="0.0.0.0", help="Host (default: 127.0.0.1)")
     ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "5000")), help="Port (default: 5000)")
 
     # Hugging Face datasets options

@@ -5,14 +5,14 @@ set +a
 
 # LMMS EVAL cache configs
 export LMMS_EVAL_USE_CACHE=True
-export LMMS_EVAL_HOME="./tmp/lmms_eval_cache_maxnewtokens8k"
+export LMMS_EVAL_HOME="./tmp/lmms_eval_cache_tqa"
 
 # tasks
-export TASKS="hrbench"
+export TASKS="hrbench_tqa"
 # Judge model
 export MODEL_VERSION="gpt-4.1-nano-2025-04-14"
 
-export OUTPUT_DIR="outputs/hrbench_intern35_2b-think-maxnewtokens8k"
+export OUTPUT_DIR="outputs/hrbench_intern35_2b-think_tqa"
 
 python3 -m accelerate.commands.launch \
     --num_processes=1 \
@@ -28,7 +28,7 @@ python3 -m accelerate.commands.launch \
     --wandb_args project=lmms-eval,job_type=eval,name="$(basename $OUTPUT_DIR)" 
     # --limit 8 \
 
-export OUTPUT_DIR="outputs/hrbench_intern35_8b-think-maxnewtokens8k"
+export OUTPUT_DIR="outputs/hrbench_intern35_8b-think-tqa"
 
 python3 -m accelerate.commands.launch \
     --num_processes=1 \

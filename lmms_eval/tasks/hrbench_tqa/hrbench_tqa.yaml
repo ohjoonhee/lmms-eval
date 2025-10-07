@@ -1,0 +1,8 @@
+group: hrbench_tqa
+task:
+  - hrbench4k_tqa
+  - hrbench8k_tqa
+metadata:
+  version: 0.0
+  gpt_eval_model_name: "gpt-3.5-turbo"
+  max_workers: 1
