@@ -86,6 +86,11 @@ def hrbench_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
     user_content.append({"type": "image", "url": image})
 
     prompt = hrbench_doc_to_text(doc)
+    if lmms_eval_specific_kwargs:
+        if "pre_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["pre_prompt"]:
+            prompt = lmms_eval_specific_kwargs["pre_prompt"] + prompt
+        if "post_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["post_prompt"]:
+            prompt = prompt + lmms_eval_specific_kwargs["post_prompt"]
     user_content.append({"type": "text", "text": prompt})
 
     messages.append({"role": "user", "content": user_content})
@@ -119,7 +124,7 @@ def hrbench_process_results(doc, results):
         cycle_category = doc["cycle_category"]
 
         gpt_score = 0
-        if gt.lower() == gpt_prediction.lower():
+        if gt.lower() == str(gpt_prediction).lower():
             gpt_score = 1
     elif "<think>" in pred and "</think>" not in pred:  # handle unclosed tag
         gt = doc["answer"]
@@ -140,7 +145,7 @@ def hrbench_process_results(doc, results):
         cycle_category = doc["cycle_category"]
 
         gpt_score = 0
-        if gt.lower() == gpt_prediction.lower():
+        if gt.lower() == str(gpt_prediction).lower():
             gpt_score = 1
 
     return {category: {"index": doc["index"], "cycle_category": cycle_category, "gpt_score": gpt_score}, "average": {"index": doc["index"], "cycle_category": cycle_category, "gpt_score": gpt_score}}

@@ -15,7 +15,7 @@ from PIL import Image
 
 from lmms_eval.tasks.hrbench.hrbench_evals import HRBenchEval
 
-with open(Path(__file__).parent / "hrbench_tqa.yaml", "r") as f:
+with open(Path(__file__).parent / "hrbench.yaml", "r") as f:
     raw_data = f.readlines()
     safe_data = []
     for i, line in enumerate(raw_data):
@@ -46,30 +46,29 @@ def decode_base64_to_image(base64_string, target_size=-1):
     return image
 
 
-def hrbench_doc_to_visual(doc):
-    # image = decode_base64_to_image(doc["image"])
-    # return [image]
-    return None
+def hrbench_open_doc_to_visual(doc):
+    image = decode_base64_to_image(doc["image"])
+    return [image]
 
 
-def hrbench_doc_to_options(doc):
+def hrbench_open_doc_to_options(doc):
     options = {cand: doc[cand] for cand in string.ascii_uppercase if cand in doc and not pd.isna(doc[cand])}
     return options
 
 
-def hrbench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+def hrbench_open_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     question = doc["question"].strip()
-    options = hrbench_doc_to_options(doc)
+    # options = hrbench_open_doc_to_options(doc)
     options_prompt = ""
-    for key, item in options.items():
-        options_prompt += f"{key}. {item}\n"
+    # for key, item in options.items():
+    #     options_prompt += f"{key}. {item}\n"
     prompt = ""
     # prompt += f"{question}\n{options_prompt}Answer the option letter directly."
-    prompt += f"{question}\n{options_prompt}"
+    prompt += f"{question}"
     return prompt
 
 
-def hrbench_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
+def hrbench_open_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
     """
     Convert a document to a list of messages with proper typing.
     Supports interleaved text, images, videos, and audio.
@@ -81,21 +80,20 @@ def hrbench_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
             # Add system message if needed
             messages.append({"role": "system", "content": [{"type": "text", "text": lmms_eval_specific_kwargs["system_prompt"]}]})
 
-
-    USER_PROMPT = """
-    Context: {caption}
-    Question: {question}"""
-
+    # Add user message with multimodal content
+    image = hrbench_open_doc_to_visual(doc)[0]
     user_content = []
-    prompt = hrbench_doc_to_text(doc)
-    user_content.append({"type": "text", "text": USER_PROMPT.format(caption=doc["image_caption"], question=prompt)})
+    user_content.append({"type": "image", "url": image})
+
+    prompt = hrbench_open_doc_to_text(doc)
+    user_content.append({"type": "text", "text": prompt})
 
     messages.append({"role": "user", "content": user_content})
 
     return messages
 
 
-def hrbench_process_results(doc, results):
+def hrbench_open_process_results(doc, results):
     """
     Args:
         doc: a instance of the eval dataset
@@ -113,7 +111,7 @@ def hrbench_process_results(doc, results):
         pred = pred.replace(think_section, "").strip()
 
         gt = doc["answer"]
-        options = hrbench_doc_to_options(doc)
+        # options = hrbench_doc_to_options(doc)
         question = doc["question"]
         resp_dic = hrbench_evaluator.get_chat_response({"question": question, "options": options, "prediction": pred})
         gpt_prediction = resp_dic["gpt_prediction"]
@@ -125,7 +123,7 @@ def hrbench_process_results(doc, results):
             gpt_score = 1
     elif "<think>" in pred and "</think>" not in pred:  # handle unclosed tag
         gt = doc["answer"]
-        options = hrbench_doc_to_options(doc)
+        # options = hrbench_doc_to_options(doc)
         question = doc["question"]
         gpt_prediction = "None"
         category = doc["category"]

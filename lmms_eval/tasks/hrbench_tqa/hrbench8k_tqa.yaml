@@ -1,4 +1,4 @@
-dataset_path: ohjoonhee/HR-Bench-with-captions
+dataset_path: ohjoonhee/HR-Bench-TQA
 dataset_kwargs:
   token: True
 task: "hrbench8k_tqa"
