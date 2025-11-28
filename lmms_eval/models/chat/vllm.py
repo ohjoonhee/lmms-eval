@@ -90,7 +90,7 @@ class VLLM(VLLMSimple):
                     messages, sampling_params = future.result()
                     batched_messages.append(messages)
 
-            sampling_params = SamplingParams(**sampling_params)
+            sampling_params = SamplingParams(**sampling_params, logprobs=20)
             start_time = time.time()
             if self.chat_template is not None:
                 with open(self.chat_template, "r") as f:
@@ -101,6 +101,41 @@ class VLLM(VLLMSimple):
             end_time = time.time()
 
             response_text = [o.outputs[0].text for o in response]
+
+            # ADDED: Logprob
+            import json
+            from dataclasses import asdict
+
+            print("Generating logprob plots...")
+
+            tmp_output_dir = os.getenv("LOGPROB_OUTPUT_DIR", "logprob")
+            for o in response:
+                out = o.outputs[0]
+                token_ids = out.token_ids
+                logprobs = out.logprobs
+
+                os.makedirs(tmp_output_dir, exist_ok=True)
+                with open(f"{tmp_output_dir}/{o.request_id}.jsonl", "a") as f:
+                    for idx, token_id in enumerate(token_ids):
+                        logprob = logprobs[idx]
+                        # top1_logprob = logprob[token_id].logprob
+                        token = logprob[token_id].decoded_token
+
+                        line = {
+                            "token": token,
+                            "token_id": token_id,
+                            "logprob": {k: asdict(v) for k, v in logprob.items()},
+                        }
+                        f.write(json.dumps(line) + "\n")
+                # tokens, logprobs = zip(*plot_data)
+
+                # with open(f"{tmp_output_dir}/{o.request_id}.csv", "w", newline="", encoding="utf-8") as f:
+                #     writer = csv.writer(f)
+                #     writer.writerow(["position", "token", "logprob"])
+                #     for i, (t, lp) in enumerate(zip(tokens, logprobs)):
+                #         writer.writerow([i, t, lp])
+            # END ADDED
+
             for req, text in zip(batch_requests, response_text):
                 self.add_request_response_to_cache(req, text)
 

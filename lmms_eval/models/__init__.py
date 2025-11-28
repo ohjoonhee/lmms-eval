@@ -79,6 +79,7 @@ AVAILABLE_SIMPLE_MODELS = {
     "whisper": "Whisper",
     "whisper_vllm": "WhisperVllm",
     "vora": "VoRA",
+    "qwen3_brain_eye_vllm": "Qwen3BrainEyeVLLM",
 }
 
 AVAILABLE_CHAT_TEMPLATE_MODELS = {
