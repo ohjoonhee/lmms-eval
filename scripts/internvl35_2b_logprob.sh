@@ -5,22 +5,22 @@ set +a
 
 # LMMS EVAL cache configs
 export LMMS_EVAL_USE_CACHE=True
-export LMMS_EVAL_HOME="./tmp/lmms_eval_cache/internvl35_38b_logprob"
+export LMMS_EVAL_HOME="./tmp/lmms_eval_cache/logprob_think_genkwargs"
 
 # tasks
-export TASKS="hrbench"
+export TASKS="hrbench_think"
 # Judge model
 export MODEL_VERSION="gpt-4.1-nano-2025-04-14"
 
-export OUTPUT_DIR="outputs/hrbench-intern35-38b-bnb4bit-think-logprob"
+export OUTPUT_DIR="outputs/hrbench-intern35-2b-think-genkwargs-logprob"
 export LOGPROB_OUTPUT_DIR="$OUTPUT_DIR/logprob"
 
 python3 -m accelerate.commands.launch \
     --num_processes=1 \
     -m lmms_eval \
     --model vllm \
-    --model_args model="OpenGVLab/InternVL3_5-38B",gpu_memory_utilization=0.90,dtype=bfloat16,max_model_len=16384,quantization=bitsandbytes,enforce_eager=True \
-    --gen_kwargs max_new_tokens=4096,temperature=0.6,do_sample=True \
+    --model_args model="OpenGVLab/InternVL3_5-2B",gpu_memory_utilization=0.90,dtype=bfloat16,max_model_len=32768 \
+    --gen_kwargs max_new_tokens=8192,temperature=0.6,do_sample=True \
     --tasks $TASKS \
     --batch_size 16 \
     --log_samples \
