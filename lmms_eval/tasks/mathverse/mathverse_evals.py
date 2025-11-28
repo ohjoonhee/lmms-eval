@@ -4,6 +4,7 @@ import time
 import pandas as pd
 from loguru import logger as eval_logger
 from openai import AzureOpenAI, OpenAI
+from openai import Client
 from tqdm import tqdm
 
 from lmms_eval.llm_judge import ServerConfig, get_server
@@ -12,13 +13,13 @@ from lmms_eval.llm_judge import ServerConfig, get_server
 class MathVerseEvaluator:
     API_TYPE = os.getenv("API_TYPE", "openai")
     if API_TYPE == "openai":
-        API_URL = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions")
+        API_URL = os.getenv("OPENAI_API_URL", None)
         API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_API_KEY")
         headers = {
             "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json",
         }
-        client = OpenAI(api_key=API_KEY, base_url=API_URL.rstrip("chat/completions"))
+        client = Client(api_key=API_KEY, base_url=API_URL)
         gpt_model = os.getenv("MODEL_VERSION", "gpt-4o-2024-11-20")
 
     elif API_TYPE == "azure":
