@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python demo/app.py $@ --hf-repo "ohjoonhee/HR-Bench" --hf-split "hrbench_4k" --hf-image-col "image"
+uv run python demo/app.py $@ --hf-repo "ohjoonhee/HR-Bench" --hf-split "hrbench_4k" --hf-image-col "image" --port 5001
