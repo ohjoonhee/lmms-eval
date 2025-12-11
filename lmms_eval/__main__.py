@@ -223,6 +223,11 @@ def parse_eval_args() -> argparse.Namespace:
         help=("String arguments for model generation on greedy_until tasks," " e.g. `temperature=0,top_k=0,top_p=0`"),
     )
     parser.add_argument(
+        "--lmms_eval_specific_kwargs",
+        default="",
+        help=("String arguments for lmms_eval_specific_kwargs on tasks," " e.g. `key1=value1,key2=value2`"),
+    )
+    parser.add_argument(
         "--verbosity",
         type=str,
         default="INFO",
@@ -272,7 +277,11 @@ def parse_eval_args() -> argparse.Namespace:
         action="store_true",
         help="Sets trust_remote_code to True to execute code to create HF Datasets from the Hub",
     )
-    parser.add_argument("--process_with_media", action="store_true", help="Whether you will process you dataset with audio, image. By default set to False" "In case some benchmarks need to be processed with media, set this flag to True.")
+    parser.add_argument(
+        "--process_with_media",
+        action="store_true",
+        help="Whether you will process you dataset with audio, image. By default set to False" "In case some benchmarks need to be processed with media, set this flag to True.",
+    )
     parser.add_argument("--force_simple", action="store_true", help="Force the evaluation to use the simple mode of the models")
     args = parser.parse_args()
     return args
@@ -499,6 +508,7 @@ def cli_evaluate_single(args: Union[argparse.Namespace, None] = None) -> None:
         apply_chat_template=args.apply_chat_template,
         fewshot_as_multiturn=args.fewshot_as_multiturn,
         gen_kwargs=args.gen_kwargs,
+        lmms_eval_specific_kwargs=args.lmms_eval_specific_kwargs,
         task_manager=task_manager,
         verbosity=args.verbosity,
         predict_only=args.predict_only,

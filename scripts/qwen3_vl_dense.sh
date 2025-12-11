@@ -4,11 +4,11 @@ source .env
 set +a
 
 # LMMS EVAL cache configs
-export LMMS_EVAL_USE_CACHE=True
-export LMMS_EVAL_HOME="./tmp/lmms_eval_cache/qwen3vl-4b-thinking-stdgenkwargs-logprob"
+# export LMMS_EVAL_USE_CACHE=True
+# export LMMS_EVAL_HOME="./tmp/lmms_eval_cache/qwen3vl-4b-thinking-stdgenkwargs-logprob"
 
 # tasks
-export TASKS="mmerealworld"
+export TASKS="hrbench"
 # Judge model
 export MODEL_VERSION="gpt-4.1-nano-2025-04-14"
 
@@ -30,10 +30,10 @@ export MODEL_VERSION="gpt-4.1-nano-2025-04-14"
 #     # --limit 8 \
 
 
-export OUTPUT_DIR="outputs/$TASKS-qwen3-vl-4b-instruct-stdgenkwargs-logprob"
+export OUTPUT_DIR="outputs/reprod-$TASKS-qwen3-vl-4b-instruct-stdgenkwargs"
 export LOGPROB_OUTPUT_DIR="$OUTPUT_DIR/logprob"
 
-uv run python3 -m accelerate.commands.launch \
+python3 -m accelerate.commands.launch \
     --num_processes=1 \
     -m lmms_eval \
     --model vllm \

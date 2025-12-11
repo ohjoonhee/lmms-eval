@@ -56,3 +56,8 @@ remote_code/*
 tmp
 
 notebooks/**/*.jsonl
+
+*.pem
+
+.gemini/
+GEMINI.md

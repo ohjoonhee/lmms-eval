@@ -75,6 +75,7 @@ dependencies = [
     "sentence_transformers",
     "python-dotenv",
     "qwen-vl-utils>=0.0.14",
+    "gradio>=4.19.1",
 ]
 
 [project.optional-dependencies]

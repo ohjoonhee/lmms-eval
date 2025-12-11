@@ -106,30 +106,30 @@ class VLLM(VLLMSimple):
             response_text = [o.outputs[0].text for o in response]
 
             # ADDED: Logprob
-            import json
-            from dataclasses import asdict
+            # import json
+            # from dataclasses import asdict
 
-            print("Generating logprob plots...")
+            # print("Generating logprob plots...")
 
-            tmp_output_dir = os.getenv("LOGPROB_OUTPUT_DIR", "logprob")
-            for o in response:
-                out = o.outputs[0]
-                token_ids = out.token_ids
-                logprobs = out.logprobs
+            # tmp_output_dir = os.getenv("LOGPROB_OUTPUT_DIR", "logprob")
+            # for o in response:
+            #     out = o.outputs[0]
+            #     token_ids = out.token_ids
+            #     logprobs = out.logprobs
 
-                os.makedirs(tmp_output_dir, exist_ok=True)
-                with open(f"{tmp_output_dir}/{o.request_id}.jsonl", "a") as f:
-                    for idx, token_id in enumerate(token_ids):
-                        logprob = logprobs[idx]
-                        # top1_logprob = logprob[token_id].logprob
-                        token = logprob[token_id].decoded_token
+            #     os.makedirs(tmp_output_dir, exist_ok=True)
+            #     with open(f"{tmp_output_dir}/{o.request_id}.jsonl", "a") as f:
+            #         for idx, token_id in enumerate(token_ids):
+            #             logprob = logprobs[idx]
+            #             # top1_logprob = logprob[token_id].logprob
+            #             token = logprob[token_id].decoded_token
 
-                        line = {
-                            "token": token,
-                            "token_id": token_id,
-                            "logprob": {k: asdict(v) for k, v in logprob.items()},
-                        }
-                        f.write(json.dumps(line) + "\n")
+            #             line = {
+            #                 "token": token,
+            #                 "token_id": token_id,
+            #                 "logprob": {k: asdict(v) for k, v in logprob.items()},
+            #             }
+            #             f.write(json.dumps(line) + "\n")
                 # tokens, logprobs = zip(*plot_data)
 
                 # with open(f"{tmp_output_dir}/{o.request_id}.csv", "w", newline="", encoding="utf-8") as f:

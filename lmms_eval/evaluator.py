@@ -2,6 +2,7 @@ import collections
 import inspect
 import itertools
 import json
+import yaml
 import os
 import random
 import sys
@@ -72,6 +73,7 @@ def simple_evaluate(
     apply_chat_template: bool = False,
     fewshot_as_multiturn: bool = False,
     gen_kwargs: Optional[str] = None,
+    lmms_eval_specific_kwargs: Optional[str] = None,
     task_manager: Optional[TaskManager] = None,
     verbosity: str = "INFO",
     predict_only: bool = False,
@@ -170,6 +172,31 @@ def simple_evaluate(
         if gen_kwargs == "":
             gen_kwargs = None
 
+    if lmms_eval_specific_kwargs:
+        if os.path.isfile(lmms_eval_specific_kwargs):
+            with open(lmms_eval_specific_kwargs, "r") as f:
+                try:
+                    lmms_eval_specific_kwargs = json.load(f)
+                except json.JSONDecodeError:
+                    # If not JSON, try YAML
+                    f.seek(0)
+                    try:
+                        lmms_eval_specific_kwargs = yaml.safe_load(f)
+                    except yaml.YAMLError:
+                        eval_logger.error(f"Could not parse file {lmms_eval_specific_kwargs} as JSON or YAML.")
+                        raise
+        else:
+            lmms_eval_specific_kwargs = simple_parse_args_string(lmms_eval_specific_kwargs)
+            
+            # Check if any value is a file path and read it
+            for key, value in lmms_eval_specific_kwargs.items():
+                if isinstance(value, str) and os.path.isfile(value):
+                    with open(value, "r") as f:
+                        lmms_eval_specific_kwargs[key] = f.read().strip()
+            eval_logger.warning(f"lmms_eval_specific_kwargs specified through cli, these settings will be used over set parameters in yaml tasks.")
+            if not lmms_eval_specific_kwargs:
+                lmms_eval_specific_kwargs = None
+
     if model_args is None:
         model_args = ""
 
@@ -220,6 +247,19 @@ def simple_evaluate(
                 if "generate_until" in task_obj.get_config("output_type"):
                     if gen_kwargs is not None:
                         task_obj.set_config(key="generation_kwargs", value=gen_kwargs, update=True)
+
+                if lmms_eval_specific_kwargs is not None:
+                    if task_obj.lmms_eval_specific_kwargs is None:
+                        task_obj.lmms_eval_specific_kwargs = {}
+                    task_obj.lmms_eval_specific_kwargs.update(lmms_eval_specific_kwargs)
+
+                if lmms_eval_specific_kwargs is not None:
+                    if task_obj.model_name in lmms_eval_specific_kwargs:
+                        task_obj.lmms_eval_specific_kwargs = lmms_eval_specific_kwargs[task_obj.model_name]
+                    elif "default" in lmms_eval_specific_kwargs:
+                        task_obj.lmms_eval_specific_kwargs.update(lmms_eval_specific_kwargs.get("default", {}))
+                    elif "dataset" in lmms_eval_specific_kwargs:
+                        task_obj.lmms_eval_specific_kwargs.update(lmms_eval_specific_kwargs.get("dataset", {}))
 
                 if predict_only:
                     eval_logger.info(f"Processing {task_name} in output-only mode. Metrics will not be calculated!")
@@ -552,7 +592,9 @@ def evaluate(
                 doc_iterator = create_iterator(enumerate(task.eval_docs_no_media), rank=RANK, limit=int(limit) if limit else None, world_size=WORLD_SIZE)
             else:
                 doc_iterator = task.doc_iterator(rank=RANK, limit=limit, world_size=WORLD_SIZE)
-            doc_iterator_for_counting = itertools.islice(range(len(task.test_docs())), RANK, limit, WORLD_SIZE) if task.has_test_docs() else itertools.islice(range(len(task.validation_docs())), RANK, limit, WORLD_SIZE)
+            doc_iterator_for_counting = (
+                itertools.islice(range(len(task.test_docs())), RANK, limit, WORLD_SIZE) if task.has_test_docs() else itertools.islice(range(len(task.validation_docs())), RANK, limit, WORLD_SIZE)
+            )
             total_docs = sum(1 for _ in doc_iterator_for_counting)
             pbar = tqdm(total=total_docs, desc=f"Postprocessing", disable=(RANK != 0))
             for doc_id, doc in doc_iterator:

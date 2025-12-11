@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 
 # Absolute path to the cache file
-CACHE_FILE = "/mnt/ssd/Projects/lmms-eval/tmp/lmms_eval_cache/qwen3_brain_eye/eval_cache/Qwen3BrainEyeVLLM_Qwen3BrainEyeVLLM_e32699020b75bc3d9524a5823b410eb83d6e5937687b6a84a73c58239f6c91b6/hrbench4k_rank0_world_size1.jsonl"
+CACHE_FILE = "tmp/lmms_eval_cache/zerobench-qwen3-brain-eye-eyeparam/eval_cache/Qwen3BrainEyeVLLM_Qwen3BrainEyeVLLM_702c994cae574a63aa3c7c360ff74ca84bebe3c685ea7584a5e0a8536ed42d85/zerobench_rank0_world_size1.jsonl"
 
 TEMPLATE = """
 <!DOCTYPE html>

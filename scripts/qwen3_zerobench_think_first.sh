@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -a
+source .env
+set +a
+
+
+# tasks
+export TASKS="zerobench"
+# Judge model
+export MODEL_VERSION="gpt-4.1-nano-2025-04-14"
+export OPENAI_API_URL="https://api.openai.com/v1"
+
+export OUTPUT_DIR="outputs/$TASKS-qwen3-vl-30ba3b-think-first"
+
+# LMMS EVAL cache configs
+export LMMS_EVAL_USE_CACHE=True
+export LMMS_EVAL_HOME="./tmp/lmms_eval_cache/$TASKS-qwen3-vl-30ba3b-think-first"
+
+python3 -m accelerate.commands.launch --num_processes=1 -m lmms_eval \
+    --model vllm \
+    --model_args model="Qwen/Qwen3-VL-30B-A3B-Thinking-FP8",gpu_memory_utilization=0.90,max_model_len=32768,quantization=fp8,enforce_eager=True \
+    --gen_kwargs max_new_tokens=4096,temperature=1.0,do_sample=True,top_p=0.95,top_k=20,repetition_penalty=1.0,presence_penalty=0.0 \
+    --lmms_eval_specific_kwargs "configs/prompts/think_first.yaml" \
+    --tasks $TASKS \
+    --batch_size 1 \
+    --output_path "$OUTPUT_DIR" \
+    --log_samples \
+    --wandb_log_samples \
+    --wandb_args project=lmms-eval,job_type=eval,name="$(basename $OUTPUT_DIR)"
