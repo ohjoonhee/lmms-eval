@@ -5,42 +5,22 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
-import requests
 from loguru import logger as eval_logger
 from tqdm import tqdm
 
+from lmms_eval.llm_judge import Request, ServerConfig, get_server
+
 
 class HRBenchEval:
-    API_TYPE = os.getenv("API_TYPE", "openai")
-
-    if API_TYPE == "openai":
-        API_URL = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions")
-        API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_API_KEY")
-        headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json",
-        }
-    elif API_TYPE == "azure":
-        API_URL = os.getenv("AZURE_ENDPOINT", "https://api.cognitive.microsoft.com/sts/v1.0/issueToken")
-        API_KEY = os.getenv("AZURE_API_KEY", "YOUR_API_KEY")
-        headers = {
-            "api-key": API_KEY,
-            "Content-Type": "application/json",
-        }
-
     def __init__(self, api_key, gpt_model="gpt-3.5-turbo", max_workers=12):
         self.api_key = api_key
         self.gpt_model = gpt_model
         self.max_workers = max_workers
 
-    def _post_request(self, payload):
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        response = requests.post(self.API_URL, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        return response.json()
+        # Initialize the judge server
+        api_type = os.getenv("API_TYPE", "openai")
+        self.server_config = ServerConfig(model_name=self.gpt_model, temperature=0, max_tokens=256)
+        self.server = get_server(server_name=api_type, config=self.server_config)
 
     def can_infer_option(self, answer, choices):
         verbose = os.environ.get("VERBOSE", 0)
@@ -110,17 +90,23 @@ class HRBenchEval:
         messages = [
             {"role": "user", "content": prompt},
         ]
-        payload = {"model": self.gpt_model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens, "n": 1}
+        
+        # Create config for this specific request
+        config = ServerConfig(model_name=self.gpt_model, temperature=temperature, max_tokens=max_tokens)
+        request = Request(messages=messages, config=config)
 
         while patience > 0:
             patience -= 1
             try:
-                response = self._post_request(payload)
-                prediction = response["choices"][0]["message"]["content"].strip()
-                if prediction and prediction != "" and "Failed to obtain answer via API" not in prediction:
-                    ret = self.can_infer(prediction, options)
-                    data["gpt_prediction"] = ret
-                    return data
+                response = self.server.evaluate(request)
+                if response.success:
+                    prediction = response.content.strip()
+                    if prediction and prediction != "" and "Failed to obtain answer via API" not in prediction:
+                        ret = self.can_infer(prediction, options)
+                        data["gpt_prediction"] = ret
+                        return data
+                else:
+                    eval_logger.error(f"Error from server: {response.error_message}")
 
             except Exception as e:
                 # some model may output repetitive answer, which ChatGPT will throw an error.

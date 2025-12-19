@@ -1,11 +1,11 @@
-dataset_path: lmms-lab/vstar-bench
+dataset_path: ohjoonhee/vstar_bench
 task: "vstar_bench"
 test_split: test
 output_type: generate_until
 doc_to_visual: !function utils.vstar_doc_to_visual
 doc_to_text: !function utils.vstar_doc_to_text
 doc_to_messages: !function utils.vstar_doc_to_messages
-doc_to_target: "label"
+doc_to_target: "answer"
 generation_kwargs:
   max_new_tokens: 512
   temperature: 0.6
@@ -16,15 +16,7 @@ generation_kwargs:
 process_results: !function utils.vstar_process_results
 lmms_eval_specific_kwargs:
   default:
-    system_prompt: |
-      You are an AI assistant that rigorously follows this response protocol:
-
-      1. First, conduct a detailed analysis of the question. Consider different angles, potential solutions, and reason through the problem step-by-step. Enclose this entire thinking process within <think> and </think> tags.
-
-      2. After the thinking section, provide a clear, concise, and direct answer to the user's question. Separate the answer from the think section with a newline.
-
-      Ensure that the thinking process is thorough but remains focused on the query. The final answer should be standalone and not reference the thinking section.
     pre_prompt: ""
     post_prompt: ""
 metadata:
-  - version: 0.0
+  - version: 0.1

@@ -1,9 +1,22 @@
 import re
+import os
 from collections import defaultdict
 
 from loguru import logger as eval_logger
 
 from lmms_eval.tasks._task_utils.file_utils import generate_submission_file
+from lmms_eval.llm_judge import Request, ServerConfig, get_server
+
+# Initialize LLM Judge
+API_TYPE = os.getenv("API_TYPE", "openai")
+MODEL_VERSION = os.getenv("MODEL_VERSION", "gpt-4-0613")
+
+try:
+    server_config = ServerConfig(model_name=MODEL_VERSION, temperature=0.0, max_tokens=1024)
+    server = get_server(server_name=API_TYPE, config=server_config)
+except Exception as e:
+    eval_logger.warning(f"Failed to initialize LLM Judge: {e}. LLM Judge metric will fail if used.")
+    server = None
 
 
 def vstar_doc_to_visual(doc):
@@ -13,44 +26,28 @@ def vstar_doc_to_visual(doc):
 
 def vstar_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     """Convert document to text prompt with options."""
-    question = doc["text"]
+    question = doc["question"]
 
-    # Extract options from the question text
-    # The format is typically: "Question text? (A) option1 (B) option2 (C) option3 (D) option4"
-    options_match = re.findall(r"\([A-D]\)\s*([^()]+?)(?=\s*\([A-D]\)|$)", question)
+    # Handle choices
+    choices = doc["choices"]
 
-    if options_match:
-        # Clean up the question text (remove the options part)
-        question_text = question.split("(A)")[0].strip()
-
-        # Format options
-        option_letters = ["A", "B", "C", "D"]
-        options_formatted = []
-        for i, option in enumerate(options_match):
-            if i < len(option_letters):
-                options_formatted.append(f"{option_letters[i]}. {option.strip()}")
-
-        # Reconstruct the question with properly formatted options
-        question = f"{question_text}\n" + "\n".join(options_formatted)
+    choices = [f"{chr(i + ord('A'))}. {choice}" for i, choice in enumerate(choices)]
+    text = "\n".join([question] + choices)
 
     # Add pre-prompt and post-prompt if specified
     if lmms_eval_specific_kwargs:
         if "pre_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["pre_prompt"]:
-            question = f"{lmms_eval_specific_kwargs['pre_prompt']}{question}"
+            text = f"{lmms_eval_specific_kwargs['pre_prompt']}{text}"
         if "post_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["post_prompt"]:
-            question = f"{question}{lmms_eval_specific_kwargs['post_prompt']}"
+            text = f"{text}{lmms_eval_specific_kwargs['post_prompt']}"
 
-    return question
+    return text
 
 
 def vstar_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
     """Convert document to messages for chat-based models."""
-    # TODO: support pre_prompt and post_prompt
     imgs = vstar_doc_to_visual(doc)
-    question = vstar_doc_to_text(doc, lmms_eval_specific_kwargs)
-
-    # Remove any instruction to answer with option letter directly
-    question = question.replace("Answer with the option's letter from the given choices directly.", "").strip()
+    text = vstar_doc_to_text(doc, lmms_eval_specific_kwargs)
 
     messages = []
     if "system_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["system_prompt"]:
@@ -60,7 +57,7 @@ def vstar_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
     user_content = []
     for img in imgs:
         user_content.append({"type": "image", "url": img})
-    user_content.append({"type": "text", "text": question})
+    user_content.append({"type": "text", "text": text})
 
     messages.append({"role": "user", "content": user_content})
 
@@ -101,6 +98,34 @@ def extract_answer_letter(response):
     return None
 
 
+def llm_judge_evaluate(question, ground_truth, prediction):
+    if server is None:
+        return 0
+
+    prompt = f"""
+You are an impartial judge evaluating the correctness of a model's answer to a question.
+Question: {question}
+Ground Truth: {ground_truth}
+Model Prediction: {prediction}
+
+Is the Model Prediction correct based on the Ground Truth? 
+Respond with only "YES" or "NO".
+"""
+    try:
+        request = Request(messages=[{"role": "user", "content": prompt}], config=server_config)
+        response = server.evaluate(request)
+        if response.success:
+            content = response.content.strip().upper()
+            if "YES" in content:
+                return 1
+            elif "NO" in content:
+                return 0
+    except Exception as e:
+        eval_logger.error(f"LLM Judge error: {e}")
+
+    return 0
+
+
 def vstar_process_results(doc, results):
     """
     Process the model results and compare with ground truth.
@@ -117,7 +142,7 @@ def vstar_process_results(doc, results):
     pred_letter = extract_answer_letter(pred)
 
     # The label in the dataset should be the correct answer letter (A, B, C, or D)
-    gt_letter = doc["label"].strip().upper()
+    gt_letter = ["A", "B", "C", "D"][doc["answer"]]
 
     # Score 1 if correct, 0 otherwise
     score = 1.0 if pred_letter == gt_letter else 0.0
@@ -127,15 +152,25 @@ def vstar_process_results(doc, results):
 
     # Log for debugging
     if score == 0:
-        eval_logger.debug(f"Question: {doc['text'][:100]}...")
+        eval_logger.debug(f"Question: {doc['question'][:100]}...")
         eval_logger.debug(f"Model response: {pred}")
         eval_logger.debug(f"Predicted: {pred_letter}, Ground Truth: {gt_letter}")
         eval_logger.debug(f"Raw prediction: {pred}")
 
-    # Return metrics for different aggregations
-    result = {"question_id": doc["question_id"], "category": category, "score": score, "prediction": pred_letter, "ground_truth": gt_letter}
+    # Calculate LLM Judge score
+    text = vstar_doc_to_text(doc)
+    judge_score = llm_judge_evaluate(text, gt_letter, pred)
 
-    return {f"vstar_{category}_acc": result, "vstar_overall_acc": result}
+    # Return metrics for different aggregations
+    result_acc = {"question_id": doc["question_id"], "category": category, "score": score, "prediction": pred_letter, "ground_truth": gt_letter}
+    result_judge = {"question_id": doc["question_id"], "category": category, "score": judge_score, "prediction": pred_letter, "ground_truth": gt_letter}
+
+    return {
+        f"vstar_{category}_acc": result_acc,
+        "vstar_overall_acc": result_acc,
+        f"vstar_{category}_llm_judge": result_judge,
+        "vstar_overall_llm_judge": result_judge,
+    }
 
 
 def vstar_aggregate_results(results):
