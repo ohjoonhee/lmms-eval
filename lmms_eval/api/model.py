@@ -61,7 +61,7 @@ class lmms(abc.ABC):
         text_hash = text_hash.replace("\r\n", "\n").replace("\r", "\n")
 
         hash_string = hashlib.sha256(text_hash.encode("utf-8")).hexdigest()
-        model_name = os.path.basename(model_name)
+        model_name = utils.sanitize_model_name(model_name)
         folder_name = class_name + "_" + model_name + "_" + hash_string
         return folder_name
 
