@@ -10,8 +10,21 @@ from loguru import logger as eval_logger
 from PIL import Image
 
 from lmms_eval.tasks._task_utils.file_utils import generate_submission_file
+from lmms_eval.llm_judge import Request, ServerConfig, get_server
+
 
 dir_name = os.path.dirname(os.path.abspath(__file__))
+
+# Initialize LLM Judge
+API_TYPE = os.getenv("API_TYPE", "openai")
+MODEL_VERSION = os.getenv("MODEL_VERSION", "gpt-4-0613")
+
+try:
+    server_config = ServerConfig(model_name=MODEL_VERSION, temperature=0.0, max_tokens=1024)
+    server = get_server(server_name=API_TYPE, config=server_config)
+except Exception as e:
+    eval_logger.warning(f"Failed to initialize LLM Judge: {e}. LLM Judge metric will fail if used.")
+    server = None
 
 eval_type_dict = {
     "coarse perception": ["image scene and topic", "image style & quality", "image emotion"],
@@ -74,6 +87,18 @@ def mmstar_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     return question
 
 
+def mmstar_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
+    # WARNING: Implement system messages and etc.
+    messages = []
+    user_messages = []
+    imgs = mmstar_doc_to_visual(doc)
+    for img in imgs:
+        user_messages.append({"type": "image", "url": img})
+    user_messages.append({"type": "text", "text": mmstar_doc_to_text(doc, lmms_eval_specific_kwargs)})
+    messages.append({"role": "user", "content": user_messages})
+    return messages
+
+
 def exact_match(pred, gt):
     """Brought from MMStar"""
     answer = gt.lower().replace("\n", " ").strip()
@@ -90,6 +115,34 @@ def exact_match(pred, gt):
     except Exception as e:
         return 0.0
     return 0.0
+
+
+def llm_judge_evaluate(question, ground_truth, prediction):
+    if server is None:
+        return 0
+
+    prompt = f"""
+You are an impartial judge evaluating the correctness of a model's answer to a question.
+Question: {question}
+Ground Truth: {ground_truth}
+Model Prediction: {prediction}
+
+Is the Model Prediction correct based on the Ground Truth? 
+Respond with only "YES" or "NO".
+"""
+    try:
+        request = Request(messages=[{"role": "user", "content": prompt}], config=server_config)
+        response = server.evaluate(request)
+        if response.success:
+            content = response.content.strip().upper()
+            if "YES" in content:
+                return 1
+            elif "NO" in content:
+                return 0
+    except Exception as e:
+        eval_logger.error(f"LLM Judge error: {e}")
+
+    return 0
 
 
 def exact_match_ko(pred, gt):
@@ -138,10 +191,25 @@ def mmstar_process_results(doc, results):
     pred = results[0]
     gt = doc["answer"]
 
+    def strip_reasoning(input):
+        return input.split("</think>")[-1].strip()
+
+    pred = strip_reasoning(pred)
+
     score = exact_match(pred, gt)
     category = doc["category"]
     l2_category = doc["l2_category"]
-    return {category: {"question_id": doc["index"], "l2_category": l2_category, "score": score}, "average": {"question_id": doc["index"], "l2_category": l2_category, "score": score}}
+
+    # Calculate LLM Judge score
+    text = mmstar_doc_to_text(doc, {})
+    judge_score = llm_judge_evaluate(text, gt, pred)
+
+    return {
+        category: {"question_id": doc["index"], "l2_category": l2_category, "score": score},
+        "average": {"question_id": doc["index"], "l2_category": l2_category, "score": score},
+        f"{category}_llm_judge": {"question_id": doc["index"], "l2_category": l2_category, "score": judge_score},
+        "average_llm_judge": {"question_id": doc["index"], "l2_category": l2_category, "score": judge_score},
+    }
 
 
 def mmstar_aggregate_results(results):

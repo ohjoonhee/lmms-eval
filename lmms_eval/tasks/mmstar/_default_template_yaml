@@ -25,11 +25,35 @@ metric_list:
   - metric: average
     aggregation: !function utils.mmstar_aggregate_results
     higher_is_better: true
+  - metric: coarse perception_llm_judge
+    aggregation: !function utils.mmstar_aggregate_results
+    higher_is_better: true
+  - metric: fine-grained perception_llm_judge
+    aggregation: !function utils.mmstar_aggregate_results
+    higher_is_better: true
+  - metric: instance reasoning_llm_judge
+    aggregation: !function utils.mmstar_aggregate_results
+    higher_is_better: true
+  - metric: logical reasoning_llm_judge
+    aggregation: !function utils.mmstar_aggregate_results
+    higher_is_better: true
+  - metric: science & technology_llm_judge
+    aggregation: !function utils.mmstar_aggregate_results
+    higher_is_better: true
+  - metric: math_llm_judge
+    aggregation: !function utils.mmstar_aggregate_results
+    higher_is_better: true
+  - metric: average_llm_judge
+    aggregation: !function utils.mmstar_aggregate_results
+    higher_is_better: true
 lmms_eval_specific_kwargs:
   default:
     pre_prompt: ""
     post_prompt: "\nAnswer with the option's letter from the given choices directly"
   qwen3_vl:
+    pre_prompt: "Question: "
+    post_prompt: "Answer with the option letter only."
+  vllm:
     pre_prompt: "Question: "
     post_prompt: "Answer with the option letter only."
 metadata:
