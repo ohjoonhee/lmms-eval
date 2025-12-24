@@ -58,3 +58,6 @@ tmp
 notebooks/**/*.jsonl
 
 *.pem
+
+.gemini/
+DEBUG.txt
