@@ -7,6 +7,7 @@ from loguru import logger as eval_logger
 from lmms_eval.tasks._task_utils.file_utils import generate_submission_file
 from lmms_eval.llm_judge import Request, ServerConfig, get_server
 
+
 # Initialize LLM Judge
 API_TYPE = os.getenv("API_TYPE", "openai")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "gpt-4-0613")
@@ -138,6 +139,17 @@ def vstar_process_results(doc, results):
     """
     pred = results[0] if results else ""
 
+    def strip_thinking(text: str) -> str:
+        """
+        Extracts the final answer by removing any <think>...</think> blocks.
+        Works even if <think> is missing.
+        """
+        if "</think>" in text:
+            return text.split("</think>", -1)[-1].strip()
+        return text.strip()
+
+    pred = strip_thinking(pred)
+
     # Extract predicted answer letter
     pred_letter = extract_answer_letter(pred)
 
@@ -163,7 +175,7 @@ def vstar_process_results(doc, results):
 
     # Return metrics for different aggregations
     result_acc = {"question_id": doc["question_id"], "category": category, "score": score, "prediction": pred_letter, "ground_truth": gt_letter}
-    result_judge = {"question_id": doc["question_id"], "category": category, "score": judge_score, "prediction": pred_letter, "ground_truth": gt_letter}
+    result_judge = {"question_id": doc["question_id"], "category": category, "score": judge_score, "prediction": pred, "ground_truth": gt_letter}
 
     return {
         f"vstar_{category}_acc": result_acc,
