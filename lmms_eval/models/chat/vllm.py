@@ -130,13 +130,13 @@ class VLLM(VLLMSimple):
             #                 "logprob": {k: asdict(v) for k, v in logprob.items()},
             #             }
             #             f.write(json.dumps(line) + "\n")
-                # tokens, logprobs = zip(*plot_data)
+            # tokens, logprobs = zip(*plot_data)
 
-                # with open(f"{tmp_output_dir}/{o.request_id}.csv", "w", newline="", encoding="utf-8") as f:
-                #     writer = csv.writer(f)
-                #     writer.writerow(["position", "token", "logprob"])
-                #     for i, (t, lp) in enumerate(zip(tokens, logprobs)):
-                #         writer.writerow([i, t, lp])
+            # with open(f"{tmp_output_dir}/{o.request_id}.csv", "w", newline="", encoding="utf-8") as f:
+            #     writer = csv.writer(f)
+            #     writer.writerow(["position", "token", "logprob"])
+            #     for i, (t, lp) in enumerate(zip(tokens, logprobs)):
+            #         writer.writerow([i, t, lp])
             # END ADDED
 
             for req, text in zip(batch_requests, response_text):

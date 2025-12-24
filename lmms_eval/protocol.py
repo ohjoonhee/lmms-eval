@@ -127,6 +127,35 @@ class ChatMessages(BaseModel):
             openai_messages.append(openai_message)
         return openai_messages
 
+    def to_qwen3_agent_openai_messages(self, video_kwargs: Dict[str, Any] = {}):
+        openai_messages = []
+        for message in self.messages:
+            openai_message = {"role": message.role, "content": []}
+            for content in message.content:
+                if content.type == "text":
+                    # openai_message["content"].append({"type": "text", "text": content.text})
+                    openai_message["content"].append({"text": content.text})
+                elif content.type == "image":
+                    # openai_message["content"].append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{self.encode_image(content.url)}"}})
+                    openai_message["content"].append({"image": f"data:image/png;base64,{self.encode_image(content.url)}"})
+                elif content.type == "video":
+                    raise ValueError("Video not implemented yet")
+                    if fetch_video is None:
+                        raise ImportError("qwen_vl_utils is required for video processing. Please install it with: pip install qwen-vl-utils")
+                    video_input, fps = fetch_video({"type": "video", "video": content.url, **video_kwargs}, return_video_metadata=True, return_video_sample_fps=True)
+                    frames, video_metadata = video_input
+                    timestamps = self._calculate_timestamps(video_metadata)
+                    for frame, timestamp in zip(frames, timestamps):
+                        image = Image.fromarray(frame.permute(1, 2, 0).numpy().astype(np.uint8))
+                        openai_message["content"].append({"type": "text", "text": f"<{timestamp:.1f} seconds>"})
+                        openai_message["content"].append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{self.encode_image(image)}"}})
+                # TODO, audio hasn't been implemented yet
+                elif content.type == "audio":
+                    raise ValueError("Audio not implemented yet")
+                    openai_message["content"].append({"type": "audio_url", "audio_url": {"url": content.url}})
+            openai_messages.append(openai_message)
+        return openai_messages
+
     def _calculate_timestamps(self, video_metadata: Dict[str, Any]):
         indices = video_metadata["frames_indices"]
         if not isinstance(indices, list):
