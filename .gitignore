@@ -58,6 +58,3 @@ tmp
 notebooks/**/*.jsonl
 
 *.pem
-
-.gemini/
-GEMINI.md
