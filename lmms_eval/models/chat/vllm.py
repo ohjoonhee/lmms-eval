@@ -93,6 +93,43 @@ class VLLM(VLLMSimple):
                     messages, sampling_params = future.result()
                     batched_messages.append(messages)
 
+            # >>> Debugging OOM
+            try:
+                with open("vllm_oom_debug.log", "a") as f:
+                    # Extract doc_ids ensuring we catch index errors if arguments structure changes
+                    current_doc_ids = []
+                    for req in batch_requests:
+                        # request.arguments: ctx, doc_to_messages, gen_kwargs, doc_id, task, split
+                        if hasattr(req, "arguments") and len(req.arguments) >= 4:
+                            current_doc_ids.append(req.arguments[3])
+                        else:
+                            current_doc_ids.append("unknown")
+
+                    f.write(f">>> Debugging OOM: Processing doc_ids: {current_doc_ids}\n")
+
+                    # Count images/videos in batched_messages
+                    # messages structure: List[List[Dict]] (batch of conversations)
+                    total_images = 0
+                    total_videos = 0
+                    for msgs in batched_messages:
+                        for msg in msgs:
+                            content = msg.get("content", "")
+                            if isinstance(content, list):
+                                for item in content:
+                                    if item.get("type") == "image_url":
+                                        total_images += 1
+                                    elif item.get("type") == "video_url":
+                                        total_videos += 1
+
+                    if total_images > 0:
+                        f.write(f"    image_inputs info: {total_images} images in batch\n")
+                    if total_videos > 0:
+                        f.write(f"    video_inputs info: {total_videos} videos in batch\n")
+
+            except Exception as e:
+                with open("vllm_oom_debug.log", "a") as f:
+                    f.write(f"    Error in OOM logging: {e}\n")
+
             sampling_params = SamplingParams(**sampling_params, logprobs=20)
             start_time = time.time()
             if self.chat_template is not None:

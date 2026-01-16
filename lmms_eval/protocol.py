@@ -1,7 +1,8 @@
 import base64
 from io import BytesIO
 from typing import Any, Dict, List, Literal, Union
-
+import uuid
+import os
 import numpy as np
 import torch
 from decord import VideoReader, cpu
@@ -127,7 +128,14 @@ class ChatMessages(BaseModel):
             openai_messages.append(openai_message)
         return openai_messages
 
-    def to_qwen3_agent_openai_messages(self, video_kwargs: Dict[str, Any] = {}):
+    def to_qwen3_agent_openai_messages(self, temp_dir = None, video_kwargs: Dict[str, Any] = {}):
+        def _save_image(image: Image.Image, directory = None) -> str:
+            """Save PIL image to temp file and return path."""
+            img_id = str(uuid.uuid4())
+            img_path = os.path.join(directory, f"{img_id}.png")
+            image.save(img_path)
+            return img_path
+
         openai_messages = []
         for message in self.messages:
             openai_message = {"role": message.role, "content": []}
@@ -137,7 +145,9 @@ class ChatMessages(BaseModel):
                     openai_message["content"].append({"text": content.text})
                 elif content.type == "image":
                     # openai_message["content"].append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{self.encode_image(content.url)}"}})
-                    openai_message["content"].append({"image": f"data:image/png;base64,{self.encode_image(content.url)}"})
+                    img = content.url
+                    img_path = _save_image(img, temp_dir)
+                    openai_message["content"].append({"image": img_path})
                 elif content.type == "video":
                     raise ValueError("Video not implemented yet")
                     if fetch_video is None:
