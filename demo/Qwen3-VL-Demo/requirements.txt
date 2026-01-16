@@ -1,4 +1,0 @@
-gradio
-modelscope_studio
-openai
-oss2
