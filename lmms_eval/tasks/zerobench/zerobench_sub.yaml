@@ -1,0 +1,3 @@
+include: _default_template_yaml
+task: zerobench_sub
+test_split: zerobench_subquestions
