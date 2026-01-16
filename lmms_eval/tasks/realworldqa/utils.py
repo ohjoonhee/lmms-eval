@@ -1,7 +1,53 @@
+import os
 import re
+
+from loguru import logger as eval_logger
 
 from lmms_eval.filters.extraction import ExtendedRegexFilter
 from lmms_eval.filters.transformation import MapFilter
+from lmms_eval.llm_judge import Request, ServerConfig, get_server
+
+# Initialize LLM Judge
+API_TYPE = os.getenv("API_TYPE", "openai")
+MODEL_VERSION = os.getenv("MODEL_VERSION", "gpt-4-0613")
+
+try:
+    server_config = ServerConfig(model_name=MODEL_VERSION, temperature=0.0, max_tokens=1024)
+    server = get_server(server_name=API_TYPE, config=server_config)
+except Exception as e:
+    eval_logger.warning(f"Failed to initialize LLM Judge: {e}. LLM Judge metric will fail if used.")
+    server = None
+
+    server = None
+
+
+def llm_judge_evaluate(question, ground_truth, prediction):
+    if server is None:
+        return 0
+
+    prompt = f"""
+You are an impartial judge evaluating the correctness of a model's answer to a question.
+Question: {question}
+Ground Truth: {ground_truth}
+Model Prediction: {prediction}
+
+Is the Model Prediction correct based on the Ground Truth? 
+Respond with only "YES" or "NO".
+"""
+    try:
+        request = Request(messages=[{"role": "user", "content": prompt}], config=server_config)
+        response = server.evaluate(request)
+        if response.success:
+            content = response.content.strip().upper()
+            if "YES" in content:
+                return 1
+            elif "NO" in content:
+                return 0
+    except Exception as e:
+        eval_logger.error(f"LLM Judge error: {e}")
+
+    return 0
+
 
 REPLACE_PROMPT = "Please answer directly with only the letter of the correct option and nothing else."
 
@@ -32,14 +78,23 @@ def realworldqa_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 
 def realworldqa_process_results(doc, results):
-    pred = results[0].lower().strip().rstrip(".")
+    raw_pred = results[0]
+    # Strip thinking process
+    pred_stripped = raw_pred.split("</think>")[-1].strip()
+
+    # Exact Match logic
+    pred_em = pred_stripped.lower().strip().rstrip(".")
     gt_ans = doc["answer"].lower().strip()
 
-    print(f"Prediction: {pred}, Ground Truth: {gt_ans}")
-    # assert gt_ans in ["a", "b", "c", "d"]
-    score = 1.0 if pred == gt_ans else 0.0
+    score = 1.0 if pred_em == gt_ans else 0.0
+
+    # LLM Judge logic
+    question_text = realworldqa_doc_to_text(doc, {})
+    judge_score = llm_judge_evaluate(question_text, doc["answer"], pred_stripped)
+
     return {
         "exact_match": score,
+        "llm_judge": judge_score,
     }
 
 
