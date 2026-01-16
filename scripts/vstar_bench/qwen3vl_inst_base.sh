@@ -21,7 +21,7 @@ python3 -m accelerate.commands.launch \
     --num_processes=1 \
     -m lmms_eval \
     --model vllm \
-    --model_args model="Qwen/Qwen3-VL-8B-Instruct",dtype=bfloat16,gpu_memory_utilization=0.90,max_model_len=32768,enforce_eager=True \
+    --model_args model="Qwen/Qwen3-VL-2B-Instruct",dtype=bfloat16,gpu_memory_utilization=0.90,max_model_len=32768 \
     --gen_kwargs max_new_tokens=4096,temperature=0.7,do_sample=True,top_p=0.8,top_k=20,repetition_penalty=1.0,presence_penalty=1.5 \
     --tasks $TASKS \
     --batch_size 64 \

@@ -38,9 +38,9 @@ def vstar_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     # Add pre-prompt and post-prompt if specified
     if lmms_eval_specific_kwargs:
         if "pre_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["pre_prompt"]:
-            text = f"{lmms_eval_specific_kwargs['pre_prompt']}{text}"
+            text = f"{lmms_eval_specific_kwargs['pre_prompt']}\n{text}"
         if "post_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["post_prompt"]:
-            text = f"{text}{lmms_eval_specific_kwargs['post_prompt']}"
+            text = f"{text}\n{lmms_eval_specific_kwargs['post_prompt']}"
 
     return text
 
@@ -146,6 +146,8 @@ def vstar_process_results(doc, results):
         """
         if "</think>" in text:
             return text.split("</think>", -1)[-1].strip()
+        if "[ANSWER]" in text:
+            return text.split("[ANSWER]")[-1].strip()
         return text.strip()
 
     pred = strip_thinking(pred)
