@@ -1,5 +1,4 @@
-system_prompt: ""
-pre_prompt: |
+system_prompt: |
   Your role is that of a research assistant specializing in visual information. Answer
   questions about images by looking at them closely and then using research tools. Please
   follow this structured thinking process and show your work.
@@ -32,4 +31,5 @@ pre_prompt: |
   <tool_call>
   {{"name": <function-name>, "arguments": <args-json-object>}}
   </tool_call>
+pre_prompt: ""
 post_prompt: ""

@@ -135,6 +135,20 @@ def hrbench_process_results(doc, results):
         cycle_category = doc["cycle_category"]
 
         gpt_score = 0
+    elif "[ANSWER]" in pred:  # Handle the tool calling case
+        gt = doc["answer"]
+        options = hrbench_doc_to_options(doc)
+        question = doc["question"]
+        pred = pred.split("[ANSWER]")[-1].strip()
+        resp_dic = hrbench_evaluator.get_chat_response({"question": question, "options": options, "prediction": pred})
+        gpt_prediction = resp_dic["gpt_prediction"]
+        category = doc["category"]
+        cycle_category = doc["cycle_category"]
+
+        gpt_score = 0
+
+        if gt.lower() == str(gpt_prediction).lower():
+            gpt_score = 1
     else:
         gt = doc["answer"]
         options = hrbench_doc_to_options(doc)
