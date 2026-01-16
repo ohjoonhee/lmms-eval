@@ -1,10 +1,11 @@
 # the code is adapted from https://github.com/EleutherAI/lm-evaluation-harness
+import collections
 import math
 import random
 import re
 import string
 from collections.abc import Iterable
-from typing import List
+from typing import Any, List
 
 import numpy as np
 import sacrebleu
@@ -531,10 +532,37 @@ def bootstrap_stderr(f, xs, iters):
     return sample_stddev(res)
 
 
+def bootstrap_chair_metric(metric_fn, xs, iters):
+    "for non multiprocessing for CHAIR"
+    print(f"bootstrapping for stddev: {metric_fn.__name__}")
+    res = []
+    from tqdm import tqdm
+
+    for _ in tqdm(range(iters), desc="Bootstrap"):
+        bootstrap_sample = random.choices(xs, k=len(xs))
+        metric_value = metric_fn(bootstrap_sample)
+        res.append(metric_value)
+
+    return sample_stddev(res)
+
+
 def stderr_for_metric(metric, bootstrap_iters: int):
     if bootstrap_iters <= 0:
         # return no function (don't compute stderr) if bootstrap iters = 0
         return None
+    # for coco_cap_chair
+    # for amber_g
+    from lmms_eval.tasks.amber_g.utils import (
+        amber_g_aggregate_chair,
+        amber_g_aggregate_cog,
+        amber_g_aggregate_cover,
+        amber_g_aggregate_hal,
+    )
+    from lmms_eval.tasks.coco_cap_chair.utils import (
+        coco_cap_chair_aggregate_results_chair_i,
+        coco_cap_chair_aggregate_results_chair_s,
+        coco_cap_chair_aggregate_results_recall,
+    )
 
     bootstrappable = [
         median,
@@ -544,10 +572,23 @@ def stderr_for_metric(metric, bootstrap_iters: int):
         bleu,
         chrf,
         ter,
+        coco_cap_chair_aggregate_results_chair_i,
+        coco_cap_chair_aggregate_results_chair_s,
+        coco_cap_chair_aggregate_results_recall,
+        amber_g_aggregate_chair,
+        amber_g_aggregate_cover,
+        amber_g_aggregate_hal,
+        amber_g_aggregate_cog,
     ]
 
     if metric in bootstrappable:
         return lambda x: bootstrap_stderr(metric, x, iters=bootstrap_iters)
+
+    if hasattr(metric, "__name__"):
+        if "coco_cap_chair" in metric.__name__:
+            return lambda x: bootstrap_chair_metric(metric, x, iters=bootstrap_iters)
+        if "amber_g" in metric.__name__ or "amber_" in metric.__name__:
+            return lambda x: bootstrap_chair_metric(metric, x, iters=bootstrap_iters)
 
     stderr = {mean: mean_stderr, acc_all: acc_all_stderr}
 
@@ -604,3 +645,56 @@ def aggregate_subtask_metrics(metrics, sizes, weight_by_size=True):
     assert len(metrics) == len(sizes)
 
     return sum([metric * size for metric, size in zip(metrics, sizes)]) / sum(sizes)
+
+
+def clustered_stderr(scores: List[float], cluster_ids: List[Any]) -> float:
+    """
+    Calculate clustered standard error for non-independent samples.
+
+    When multiple questions share the same context (e.g., same image/video),
+    they are not independent. This implements Equation 4 from:
+    "Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations"
+    (https://arxiv.org/abs/2411.00640)
+
+    SE_clustered = sqrt(SE_CLT^2 + (1/n^2) * sum_c sum_i sum_{j!=i} (s_ic - s_bar)(s_jc - s_bar))
+
+    Args:
+        scores: List of individual scores (e.g., 0/1 for correctness)
+        cluster_ids: List of cluster identifiers (e.g., video_id, image_id)
+
+    Returns:
+        Clustered standard error, or NaN if insufficient data
+    """
+    n = len(scores)
+    if n < 2:
+        return float("nan")
+
+    if len(scores) != len(cluster_ids):
+        raise ValueError("scores and cluster_ids must have the same length")
+
+    # Global mean
+    s_bar = sum(scores) / n
+
+    # SE_CLT^2 = Var(scores) / n = (1/(n-1)) * sum((s_i - s_bar)^2) / n
+    var_scores = sum((s - s_bar) ** 2 for s in scores) / (n - 1)
+    se_clt_squared = var_scores / n
+
+    # Group scores by cluster with their indices
+    cluster_to_scores = collections.defaultdict(list)
+    for i, (score, cid) in enumerate(zip(scores, cluster_ids)):
+        cluster_to_scores[cid].append(score)
+
+    # Calculate within-cluster cross-terms: sum_c sum_i sum_{j!=i} (s_ic - s_bar)(s_jc - s_bar)
+    cross_term = 0.0
+    for cid, cluster_scores in cluster_to_scores.items():
+        # For each cluster, compute sum of (s_i - s_bar)(s_j - s_bar) for i != j
+        deviations = [s - s_bar for s in cluster_scores]
+        cluster_sum = sum(deviations)
+        # sum_{i!=j} d_i * d_j = (sum d_i)^2 - sum(d_i^2)
+        sum_of_squares = sum(d * d for d in deviations)
+        cross_term += cluster_sum * cluster_sum - sum_of_squares
+
+    cross_term /= n * n
+
+    # SE_clustered = sqrt(SE_CLT^2 + cross_term)
+    return math.sqrt(se_clt_squared + cross_term)

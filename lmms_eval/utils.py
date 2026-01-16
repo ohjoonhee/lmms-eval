@@ -102,6 +102,34 @@ def handle_non_serializable(o):
         return str(o)
 
 
+def is_multimodal_content(value: Any) -> bool:
+    """
+    Check if a value is multimodal content (image, audio, video) that should
+    not be serialized to log files.
+
+    Returns True for:
+    - PIL.Image objects
+    - numpy arrays (typically image/audio data)
+    - bytes (binary data)
+    - torch tensors
+    - dicts with 'array' key (HuggingFace audio format)
+    - dicts with 'bytes' key (HuggingFace image format)
+    """
+    if isinstance(value, (bytes, bytearray, np.ndarray, torch.Tensor)):
+        return True
+    if isinstance(value, dict):
+        if "array" in value or "bytes" in value:
+            return True
+    try:
+        from PIL import Image
+
+        if isinstance(value, Image.Image):
+            return True
+    except ImportError:
+        pass
+    return False
+
+
 def sanitize_list(sub):
     """
     Takes possible nested list and recursively converts all inner component to strings
@@ -517,6 +545,8 @@ def make_table(result_dict, column: str = "results", sort_results: bool = False)
         "Value",
         "",
         "Stderr",
+        "Stderr_CLT",
+        "Stderr_Clustered",
     ]
 
     md_writer = MarkdownTableWriter()
@@ -546,7 +576,8 @@ def make_table(result_dict, column: str = "results", sort_results: bool = False)
 
         for (mf), v in metric_items:
             m, _, f = mf.partition(",")
-            if m.endswith("_stderr"):
+            # Skip stderr variants - they'll be shown as columns
+            if m.endswith("_stderr") or m.endswith("_stderr_clt") or m.endswith("_stderr_clustered"):
                 continue
 
             hib = HIGHER_IS_BETTER_SYMBOLS.get(higher_is_better.get(m), "")
@@ -555,17 +586,29 @@ def make_table(result_dict, column: str = "results", sort_results: bool = False)
             if v == "" or v is None:
                 v = "N/A"
 
-            if m + "_stderr" + "," + f in dic:
-                # if dic[m + "_stderr" + "," + f] != []:
-                se = dic[m + "_stderr" + "," + f]
+            # Helper to format stderr value
+            def fmt_se(se_val):
+                if se_val is None or se_val == "N/A":
+                    return "N/A"
+                # Handle empty list/array safely (numpy array comparison is ambiguous)
+                if hasattr(se_val, "__len__") and len(se_val) == 0:
+                    return "N/A"
                 try:
-                    se = "   N/A" if se == "N/A" or se == [] else "%.4f" % se
+                    return "%.4f" % se_val
                 except:
-                    se = "N/A"
-                if v != []:
-                    values.append([k, version, f, n, m, hib, v, "±", se])
-            else:
-                values.append([k, version, f, n, m, hib, v, "", ""])
+                    return "N/A"
+
+            # Bootstrap stderr (original)
+            se = fmt_se(dic.get(m + "_stderr," + f))
+            # CLT stderr
+            se_clt = fmt_se(dic.get(m + "_stderr_clt," + f))
+            # Clustered stderr
+            se_clustered = fmt_se(dic.get(m + "_stderr_clustered," + f))
+
+            # Check if v is not empty (handle numpy array safely)
+            is_empty = hasattr(v, "__len__") and not isinstance(v, str) and len(v) == 0
+            if not is_empty:
+                values.append([k, version, f, n, m, hib, v, "±", se, se_clt, se_clustered])
             # k = ""
             # version = ""
     md_writer.value_matrix = values
@@ -671,14 +714,25 @@ def import_function(loader, node):
     *module_name, function_name = function_name.split(".")
     if isinstance(module_name, list):
         module_name = ".".join(module_name)
+
+    # 1) Try relative file import (original behavior)
     module_path = os.path.normpath(os.path.join(yaml_path, "{}.py".format(module_name)))
+    if os.path.exists(module_path):
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        function = getattr(module, function_name)
+        return function
 
-    spec = importlib.util.spec_from_file_location(module_name, module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    function = getattr(module, function_name)
-    return function
+    # 2) Fallback to absolute module import (enables cross-task utils like
+    #    lmms_eval.tasks.librispeech.utils.librispeech_doc_to_audio)
+    try:
+        module = importlib.import_module(module_name)
+        function = getattr(module, function_name)
+        return function
+    except Exception as ex:
+        # Re-raise with context to aid debugging
+        raise ImportError(f"Failed to import function '{function_name}' from module '{module_name}'. " f"Tried relative path '{module_path}' and absolute import.") from ex
 
 
 def load_yaml_config(yaml_path=None, yaml_config=None, yaml_dir=None, mode="full"):
