@@ -1,0 +1,25 @@
+task: countbenchqa
+dataset_path: vikhyatk/CountBenchQA
+dataset_kwargs:
+  token: True
+test_split: test
+output_type: generate_until
+doc_to_visual: !function utils.countbenchqa_doc_to_visual
+doc_to_text: !function utils.countbenchqa_doc_to_text
+doc_to_target: "number"
+doc_to_messages: !function utils.countbenchqa_doc_to_messages
+process_results: !function utils.countbenchqa_process_results
+generation_kwargs:
+  max_new_tokens: 4096
+metric_list:
+  - metric: exact_match
+    aggregation: !function utils.countbenchqa_aggregate_exact_match
+    higher_is_better: true
+  - metric: countbenchqa_llm_judge
+    aggregation: !function utils.countbenchqa_aggregate_llm_judge
+    higher_is_better: true
+lmms_eval_specific_kwargs:
+  pre_prompt: ""
+  post_prompt: "Please select the correct answer from the options above."
+metadata:
+  version: 0.0
