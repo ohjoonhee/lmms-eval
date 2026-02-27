@@ -560,6 +560,13 @@ def _sandboxed_execution_target(
     }
 
     if cv2:
+        # Mock GUI functions to do nothing
+        def no_op(*args, **kwargs):
+            pass
+
+        cv2.imshow = no_op
+        cv2.waitKey = no_op
+        cv2.destroyAllWindows = no_op
         sandbox_globals["cv2"] = cv2
 
     sandbox_globals_always = sandbox_globals
@@ -608,7 +615,11 @@ def _sandboxed_execution_target(
                 if hasattr(ast, "unparse"):
                     code_to_execute = ast.unparse(new_tree)
                 else:
-                    print("Warning: ast.unparse not available (requires Python 3.9+). " "Code for image_path replacement not updated. Consider installing" "'astor' for older Python versions or upgrading Python.")
+                    print(
+                        "Warning: ast.unparse not available (requires Python 3.9+). "
+                        "Code for image_path replacement not updated. Consider installing"
+                        "'astor' for older Python versions or upgrading Python."
+                    )
         except SyntaxError as e:
             print(f"Syntax error when parsing code for image_path replacement: {e}")
         except Exception as e:

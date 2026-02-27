@@ -289,6 +289,9 @@ class Thyme(Qwen2_5_VLSimple):
     def generate_until(self, requests: List[Instance]) -> List[str]:
         res = []
 
+        self.load_cache()
+        res, requests = self.get_response_from_cache(requests)
+
         # A dummy collate here to sort by doc id
         def _collate(x):
             return x[0], x[0]
@@ -349,11 +352,31 @@ class Thyme(Qwen2_5_VLSimple):
             # Calculate timing metrics for batch
             e2e_latency += end_time - start_time
 
-            for answer, context in zip(answers, cache_contexts):
+            for i, (answer, context) in enumerate(zip(answers, cache_contexts)):
                 clean_ans = parse_reasoning_model_answer(answer)
                 res.append(clean_ans)
                 self.cache_hook.add_partial("generate_until", (context, gen_kwargs), clean_ans)
+
+                # Find the request corresponding to this answer
+                current_doc_id = doc_id[i]
+                current_task = task[i]
+
+                current_request = None
+                for req in requests:
+                    # We need to match based on the doc_id and task_name
+                    # The req.args contains (context, gen_kwargs, doc_to_visual, doc_id, task, split)
+                    if req.args[3] == current_doc_id and req.args[4] == current_task:
+                        current_request = req
+                        break
+
+                if current_request:
+                    self.add_request_response_to_cache(current_request, answer)
+                else:
+                    eval_logger.warning(f"Could not find request for doc_id {current_doc_id} and task {current_task}")
                 pbar.update(1)
+
+                print("================================")
+                print(res)
 
                 eval_logger.debug(f"Question: {context}")
                 eval_logger.debug(f"Model Raw Response: {answer}")

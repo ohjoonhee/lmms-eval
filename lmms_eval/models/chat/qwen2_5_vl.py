@@ -19,7 +19,9 @@ from lmms_eval.protocol import ChatMessages
 try:
     from qwen_vl_utils import process_vision_info
 except ImportError:
-    eval_logger.warning("Failed to import qwen_vl_utils; Please install it via `pip install qwen-vl-utils`")
+    eval_logger.warning(
+        "Failed to import qwen_vl_utils; Please install it via `pip install qwen-vl-utils`"
+    )
 
 
 @register_model("qwen2_5_vl_chat")
@@ -43,14 +45,23 @@ class Qwen2_5_VL(Qwen2_5_VLSimple):
             grouping=True,
         )
         chunks = re_ords.get_batched(n=self.batch_size, batch_fn=None)
-        num_iters = len(requests) // self.batch_size if len(requests) % self.batch_size == 0 else len(requests) // self.batch_size + 1
+        num_iters = (
+            len(requests) // self.batch_size
+            if len(requests) % self.batch_size == 0
+            else len(requests) // self.batch_size + 1
+        )
         pbar = tqdm(total=num_iters, disable=(self.rank != 0), desc="Model Responding")
         e2e_latency = 0
         total_tokens = 0
         for chunk in chunks:
             ctx, doc_to_messages, all_gen_kwargs, doc_id, task, split = zip(*chunk)
-            chat_messages = [doc_to_messages[idx](self.task_dict[task][split][ids]) for idx, (ids, task, split) in enumerate(zip(doc_id, task, split))]
-            chat_messages: List[ChatMessages] = [ChatMessages(**{"messages": message}) for message in chat_messages]
+            chat_messages = [
+                doc_to_messages[idx](self.task_dict[task][split][ids])
+                for idx, (ids, task, split) in enumerate(zip(doc_id, task, split))
+            ]
+            chat_messages: List[ChatMessages] = [
+                ChatMessages(**{"messages": message}) for message in chat_messages
+            ]
             visuals = []
             videos = []
             for messages in chat_messages:
@@ -70,14 +81,73 @@ class Qwen2_5_VL(Qwen2_5_VLSimple):
                 video_kwargs["fps"] = self.fps
             else:
                 video_kwargs["nframes"] = self.max_num_frames
-            batched_messages = [chat_message.to_hf_messages(video_kwargs=video_kwargs) for chat_message in chat_messages]
-            texts = self.processor.apply_chat_template(batched_messages, tokenize=False, add_generation_prompt=True)
+            batched_messages = [
+                chat_message.to_hf_messages(video_kwargs=video_kwargs)
+                for chat_message in chat_messages
+            ]
+            texts = self.processor.apply_chat_template(
+                batched_messages, tokenize=False, add_generation_prompt=True
+            )
+
+            # Debug: Display raw messages being passed to the model
+            if getattr(self, "debug", False):
+                import json
+
+                for idx, (msg, txt) in enumerate(zip(batched_messages, texts)):
+                    eval_logger.info(
+                        f"[DEBUG] Request {idx + 1}/{len(batched_messages)} - Raw Messages Structure:"
+                    )
+                    # Show raw structure, truncating base64 image data
+                    debug_msg = []
+                    for m in msg:
+                        debug_m = {"role": m.get("role", "unknown")}
+                        content = m.get("content", "")
+                        if isinstance(content, list):
+                            debug_content = []
+                            for item in content:
+                                if isinstance(item, dict):
+                                    debug_item = dict(item)
+                                    # Truncate base64 image data for readability
+                                    if (
+                                        debug_item.get("type") == "image"
+                                        and "image" in debug_item
+                                    ):
+                                        img_val = debug_item["image"]
+                                        if (
+                                            isinstance(img_val, str)
+                                            and len(img_val) > 100
+                                        ):
+                                            debug_item["image"] = (
+                                                img_val[:100]
+                                                + f"... ({len(img_val)} chars)"
+                                            )
+                                    debug_content.append(debug_item)
+                                else:
+                                    debug_content.append(item)
+                            debug_m["content"] = debug_content
+                        else:
+                            debug_m["content"] = content
+                        debug_msg.append(debug_m)
+                    eval_logger.info(
+                        f"[DEBUG] {json.dumps(debug_msg, indent=2, ensure_ascii=False)}"
+                    )
+                    eval_logger.info(
+                        f"[DEBUG] Processed text (first 2000 chars):\n{txt[:2000]}"
+                    )
+                    if len(txt) > 2000:
+                        eval_logger.info(
+                            f"[DEBUG] ... (truncated, total length: {len(txt)} chars)"
+                        )
+                    eval_logger.info("[DEBUG] " + "=" * 80)
+
             image_inputs, video_inputs = process_vision_info(batched_messages)
             if video_inputs is not None:
                 total_frames = video_inputs[0].shape[0]
                 # Only resample if we have more frames than needed
                 if total_frames > self.max_num_frames:
-                    indices = np.linspace(0, total_frames - 1, self.max_num_frames, dtype=int)
+                    indices = np.linspace(
+                        0, total_frames - 1, self.max_num_frames, dtype=int
+                    )
                     # Append the last frame index if not already included
                     if total_frames - 1 not in indices:
                         indices = np.append(indices, total_frames - 1)
@@ -132,7 +202,10 @@ class Qwen2_5_VL(Qwen2_5_VLSimple):
             )
             end_time = time.time()
 
-            generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, cont)]
+            generated_ids_trimmed = [
+                out_ids[len(in_ids) :]
+                for in_ids, out_ids in zip(inputs.input_ids, cont)
+            ]
             answers = self.processor.batch_decode(
                 generated_ids_trimmed,
                 skip_special_tokens=True,
@@ -146,7 +219,9 @@ class Qwen2_5_VL(Qwen2_5_VLSimple):
             for ans, context in zip(answers, texts):
                 clean_ans = parse_reasoning_model_answer(ans)
                 res.append(clean_ans)
-                self.cache_hook.add_partial("generate_until", (context, gen_kwargs), clean_ans)
+                self.cache_hook.add_partial(
+                    "generate_until", (context, gen_kwargs), clean_ans
+                )
 
                 eval_logger.debug(f"Question: {context}")
                 eval_logger.debug(f"Model Raw Response: {ans}")

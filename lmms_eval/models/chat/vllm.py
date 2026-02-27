@@ -3,6 +3,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Tuple, Union
 
+from loguru import logger as eval_logger
 from tqdm import tqdm
 
 from lmms_eval.api.instance import Instance
@@ -39,7 +40,18 @@ class VLLM(VLLMSimple):
         nframes: Optional[int] = 32,
         **kwargs,
     ):
-        super().__init__(model, tensor_parallel_size, data_parallel_size, gpu_memory_utilization, batch_size, max_frame_num, trust_remote_code, chat_template, min_image_pixels, **kwargs)
+        super().__init__(
+            model,
+            tensor_parallel_size,
+            data_parallel_size,
+            gpu_memory_utilization,
+            batch_size,
+            max_frame_num,
+            trust_remote_code,
+            chat_template,
+            min_image_pixels,
+            **kwargs,
+        )
         self.fps = fps
         self.max_pixels = max_pixels
         self.nframes = nframes
@@ -80,101 +92,95 @@ class VLLM(VLLMSimple):
         res = []
         self.load_cache()
         res, requests = self.get_response_from_cache(requests)
-        pbar = tqdm(total=len(requests), disable=(self.rank != 0), desc="Model Responding")
+        pbar = tqdm(
+            total=len(requests), disable=(self.rank != 0), desc="Model Responding"
+        )
 
         batch_size = self.batch_size_per_gpu
-        batched_requests = [requests[i : i + batch_size] for i in range(0, len(requests), batch_size)]
+        batched_requests = [
+            requests[i : i + batch_size] for i in range(0, len(requests), batch_size)
+        ]
         e2e_latency = 0
         for batch_requests in batched_requests:
             batched_messages = []
             with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-                futures = [executor.submit(self.make_one_request, request) for request in batch_requests]
+                futures = [
+                    executor.submit(self.make_one_request, request)
+                    for request in batch_requests
+                ]
                 for future in futures:
                     messages, sampling_params = future.result()
                     batched_messages.append(messages)
 
-            # >>> Debugging OOM
-            try:
-                with open("vllm_oom_debug.log", "a") as f:
-                    # Extract doc_ids ensuring we catch index errors if arguments structure changes
-                    current_doc_ids = []
-                    for req in batch_requests:
-                        # request.arguments: ctx, doc_to_messages, gen_kwargs, doc_id, task, split
-                        if hasattr(req, "arguments") and len(req.arguments) >= 4:
-                            current_doc_ids.append(req.arguments[3])
+            # Debug: Display raw messages being passed to the model
+            if getattr(self, "debug", False):
+                import json
+
+                for idx, msgs in enumerate(batched_messages):
+                    eval_logger.info(
+                        f"[DEBUG] Request {idx + 1}/{len(batched_messages)} - Raw Messages Structure:"
+                    )
+                    # Show raw structure, truncating base64 image data
+                    debug_msgs = []
+                    for m in msgs:
+                        debug_m = {"role": m.get("role", "unknown")}
+                        content = m.get("content", "")
+                        if isinstance(content, list):
+                            debug_content = []
+                            for item in content:
+                                if isinstance(item, dict):
+                                    debug_item = dict(item)
+                                    # Truncate base64 image data in image_url for readability
+                                    if (
+                                        debug_item.get("type") == "image_url"
+                                        and "image_url" in debug_item
+                                    ):
+                                        img_url = debug_item["image_url"]
+                                        if (
+                                            isinstance(img_url, dict)
+                                            and "url" in img_url
+                                        ):
+                                            url_val = img_url["url"]
+                                            if (
+                                                isinstance(url_val, str)
+                                                and len(url_val) > 100
+                                            ):
+                                                debug_item["image_url"] = {
+                                                    "url": url_val[:100]
+                                                    + f"... ({len(url_val)} chars)"
+                                                }
+                                    debug_content.append(debug_item)
+                                else:
+                                    debug_content.append(item)
+                            debug_m["content"] = debug_content
                         else:
-                            current_doc_ids.append("unknown")
+                            debug_m["content"] = content
+                        debug_msgs.append(debug_m)
+                    eval_logger.info(
+                        f"[DEBUG] {json.dumps(debug_msgs, indent=2, ensure_ascii=False)}"
+                    )
+                    eval_logger.info("[DEBUG] " + "=" * 80)
 
-                    f.write(f">>> Debugging OOM: Processing doc_ids: {current_doc_ids}\n")
-
-                    # Count images/videos in batched_messages
-                    # messages structure: List[List[Dict]] (batch of conversations)
-                    total_images = 0
-                    total_videos = 0
-                    for msgs in batched_messages:
-                        for msg in msgs:
-                            content = msg.get("content", "")
-                            if isinstance(content, list):
-                                for item in content:
-                                    if item.get("type") == "image_url":
-                                        total_images += 1
-                                    elif item.get("type") == "video_url":
-                                        total_videos += 1
-
-                    if total_images > 0:
-                        f.write(f"    image_inputs info: {total_images} images in batch\n")
-                    if total_videos > 0:
-                        f.write(f"    video_inputs info: {total_videos} videos in batch\n")
-
-            except Exception as e:
-                with open("vllm_oom_debug.log", "a") as f:
-                    f.write(f"    Error in OOM logging: {e}\n")
-
-            sampling_params = SamplingParams(**sampling_params, logprobs=20)
+            sampling_params = SamplingParams(**sampling_params)
             start_time = time.time()
             if self.chat_template is not None:
                 with open(self.chat_template, "r") as f:
                     chat_template = f.read()
-                response = self.client.chat(sampling_params=sampling_params, messages=batched_messages, chat_template=chat_template)
+                response = self.client.chat(
+                    sampling_params=sampling_params,
+                    messages=batched_messages,
+                    chat_template=chat_template,
+                    use_tqdm=False,
+                )
             else:
-                response = self.client.chat(sampling_params=sampling_params, messages=batched_messages)
+                response = self.client.chat(
+                    sampling_params=sampling_params,
+                    messages=batched_messages,
+                    use_tqdm=False,
+                )
             end_time = time.time()
 
             response_text = [o.outputs[0].text for o in response]
-
-            # ADDED: Logprob
-            # import json
-            # from dataclasses import asdict
-
-            # print("Generating logprob plots...")
-
-            # tmp_output_dir = os.getenv("LOGPROB_OUTPUT_DIR", "logprob")
-            # for o in response:
-            #     out = o.outputs[0]
-            #     token_ids = out.token_ids
-            #     logprobs = out.logprobs
-
-            #     os.makedirs(tmp_output_dir, exist_ok=True)
-            #     with open(f"{tmp_output_dir}/{o.request_id}.jsonl", "a") as f:
-            #         for idx, token_id in enumerate(token_ids):
-            #             logprob = logprobs[idx]
-            #             # top1_logprob = logprob[token_id].logprob
-            #             token = logprob[token_id].decoded_token
-
-            #             line = {
-            #                 "token": token,
-            #                 "token_id": token_id,
-            #                 "logprob": {k: asdict(v) for k, v in logprob.items()},
-            #             }
-            #             f.write(json.dumps(line) + "\n")
-            # tokens, logprobs = zip(*plot_data)
-
-            # with open(f"{tmp_output_dir}/{o.request_id}.csv", "w", newline="", encoding="utf-8") as f:
-            #     writer = csv.writer(f)
-            #     writer.writerow(["position", "token", "logprob"])
-            #     for i, (t, lp) in enumerate(zip(tokens, logprobs)):
-            #         writer.writerow([i, t, lp])
-            # END ADDED
 
             for req, text in zip(batch_requests, response_text):
                 self.add_request_response_to_cache(req, text)
@@ -220,9 +226,13 @@ class VLLM(VLLMSimple):
         for metric in metrics:
             name = metric.name
             if "time_to_first_token" in name:
-                ttft = metric.sum / metric.count if metric.count > 0 else 0  # When there's no "Not cached requests", count can be 0
+                ttft = (
+                    metric.sum / metric.count if metric.count > 0 else 0
+                )  # When there's no "Not cached requests", count can be 0
             if "time_per_output_token_seconds" in name:
-                tpot = metric.sum / metric.count if metric.count > 0 else 0  # When there's no "Not cached requests", count can be 0
+                tpot = (
+                    metric.sum / metric.count if metric.count > 0 else 0
+                )  # When there's no "Not cached requests", count can be 0
             if name == "vllm:generation_tokens":
                 generation_tokens = metric.value
 
