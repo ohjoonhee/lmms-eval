@@ -76,6 +76,28 @@ def mmstar_oc_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     prompt = prompt.rstrip()
     return prompt
 
+def mmstar_oc_v3_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    """
+    Opencompass version of MMStar v3: no "Question: " or "Options: " prefixes.
+    Format: {question}\n{A. ...}\n{B. ...}\n...\n{post_prompt}
+    """
+    pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "")
+    post_prompt = lmms_eval_specific_kwargs.get("post_prompt", "")
+
+    question = doc["question"]
+    question = question.replace("<image 1>", "")
+    options = {cand: doc[cand] for cand in string.ascii_uppercase if cand in doc}
+
+    options_prompt = ""
+    for key, item in options.items():
+        options_prompt += f"{key}. {item}\n"
+
+    prompt = f"{pre_prompt}{question}\n"
+    prompt += options_prompt
+    prompt += f"{post_prompt}"
+    prompt = prompt.rstrip()
+    return prompt
+
 
 def mmstar_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     question = doc["question"].strip()
