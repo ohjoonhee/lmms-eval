@@ -529,6 +529,7 @@ def bootstrap_stderr(f, xs, iters):
         res.extend(bootstrap)
 
     pool.close()
+    pool.join()
     return sample_stddev(res)
 
 
