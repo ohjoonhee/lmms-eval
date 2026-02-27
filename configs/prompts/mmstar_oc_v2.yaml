@@ -1,0 +1,10 @@
+lmms_eval_specific_kwargs:
+  default:
+    pre_prompt: ""
+    post_prompt: "\nAnswer with the option's letter from the given choices directly"
+  qwen3_vl:
+    pre_prompt: "Answer with the option letter only.\nQuestion: "
+    post_prompt: ""
+  vllm:
+    pre_prompt: "Answer with the option letter only.\nQuestion: "
+    post_prompt: ""
