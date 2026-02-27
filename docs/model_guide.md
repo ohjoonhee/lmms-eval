@@ -253,3 +253,7 @@ Remember to:
 - Process model-specific tokens (e.g., `<image>`, `<video>`, `<audio>`)
 - Implement both `generate_until` and `loglikelihood` methods if your model supports both generation and multiple-choice tasks
 - Follow the existing model implementations in `lmms_eval/models/chat/` for reference
+
+## OpenAI and API Models
+
+If you are working with OpenAI-compatible API models (like standard OpenAI endpoints, vLLM, SGLang, etc.), please refer to [OpenAI Models Comparison](openai_models_comparison.md) for a detailed comparison of the `openai_compatible` and `async_openai` implementations.
