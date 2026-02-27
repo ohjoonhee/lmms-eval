@@ -32,23 +32,23 @@ def image_zoom_in_tool(image_path: str, bbox: List[float]):
     return ImageContent(type="image", data=png, mimeType="image/png")
 
 
-@app.tool(name="weather", description="query weather")
-def get_weather(city: str):
-    weather_data = {"Beijing": {"temp": 25, "condition": "Rainy"}, "Shanghai": {"temp": 28, "condition": "Cloudy"}}
-    # 返回对应城市的天气信息，如果城市不存在则返回错误信息
-    result = weather_data.get(city, {"error": "未找到该城市"})
-    return result
+# @app.tool(name="weather", description="query weather")
+# def get_weather(city: str):
+#     weather_data = {"Beijing": {"temp": 25, "condition": "Rainy"}, "Shanghai": {"temp": 28, "condition": "Cloudy"}}
+#     # 返回对应城市的天气信息，如果城市不存在则返回错误信息
+#     result = weather_data.get(city, {"error": "未找到该城市"})
+#     return result
 
 
-@app.tool(name="get_blank_image", description="get blank image")
-def get_blank_image(width: int = 512, height: int = 512):
-    """ """
-    image = Image.new("RGB", (width, height), color=(255, 255, 255))
-    image_bytes = io.BytesIO()
-    image.save(image_bytes, format="PNG")
-    image_bytes.seek(0)
-    png = base64.b64encode(image_bytes.getvalue()).decode("utf-8")
-    return ImageContent(type="image", data=png, mimeType="image/png")
+# @app.tool(name="get_blank_image", description="get blank image")
+# def get_blank_image(width: int = 512, height: int = 512):
+#     """ """
+#     image = Image.new("RGB", (width, height), color=(255, 255, 255))
+#     image_bytes = io.BytesIO()
+#     image.save(image_bytes, format="PNG")
+#     image_bytes.seek(0)
+#     png = base64.b64encode(image_bytes.getvalue()).decode("utf-8")
+#     return ImageContent(type="image", data=png, mimeType="image/png")
 
 
 if __name__ == "__main__":
