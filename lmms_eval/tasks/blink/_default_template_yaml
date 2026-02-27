@@ -11,6 +11,9 @@ metric_list:
   - metric: blink_acc
     aggregation: !function utils.blink_aggregate_results
     higher_is_better: true
+  - metric: blink_gpt_eval
+    aggregation: !function utils.blink_aggregate_gpt_eval
+    higher_is_better: true
 
 lmms_eval_specific_kwargs:
   default:
@@ -19,3 +22,7 @@ lmms_eval_specific_kwargs:
 
 generation_kwargs:
   max_new_tokens: 1024
+
+metadata:
+  version: 0.0
+  gpt_eval_model_name: "gpt-4o-2024-11-20"

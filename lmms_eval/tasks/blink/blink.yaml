@@ -3,3 +3,4 @@ task:
   - blink_groups
 aggregate_metric_list:
   - metric: blink_acc
+  - metric: blink_gpt_eval
