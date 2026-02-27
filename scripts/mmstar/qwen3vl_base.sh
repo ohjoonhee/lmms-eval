@@ -8,7 +8,7 @@ export VLLM_CPU_OMP_THREADS_BIND=0-7
 
 # tasks
 export TASKS="mmstar"
-export RUN_NAME="$TASKS-base-fixprompt-message"
+export RUN_NAME="$TASKS-base"
 
 # LMMS EVAL cache configs
 export LMMS_EVAL_USE_CACHE=True

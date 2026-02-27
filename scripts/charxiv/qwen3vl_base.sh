@@ -3,11 +3,11 @@ set -a
 source .env
 set +a
 
-export OMP_NUM_THREADS=8
-export VLLM_CPU_OMP_THREADS_BIND=0-7
+# export OMP_NUM_THREADS=8
+# export VLLM_CPU_OMP_THREADS_BIND=0-7
 
 # tasks
-export TASKS="charxiv"
+export TASKS="charxiv_val_reasoning"
 export RUN_NAME="$TASKS-base"
 
 # LMMS EVAL cache configs
@@ -21,15 +21,13 @@ export OUTPUT_DIR="output/$RUN_NAME"
 # export LOGPROB_OUTPUT_DIR="$OUTPUT_DIR/logprob"
 
 
-python3 -m accelerate.commands.launch \
-    --num_processes=1 \
-    -m lmms_eval \
+uv run python3 -m lmms_eval \
     --model vllm \
-    --model_args model="Qwen/Qwen3-VL-8B-Thinking",dtype=bfloat16,gpu_memory_utilization=0.90,max_model_len=65536 \
+    --model_args model="Qwen/Qwen3-VL-4B-Thinking",dtype=bfloat16,gpu_memory_utilization=0.90,max_model_len=65536,disable_log_stats=True \
     --gen_kwargs max_new_tokens=20480,temperature=1.0,do_sample=True,top_p=0.95,top_k=20,repetition_penalty=1.0,presence_penalty=0.0 \
     --tasks $TASKS \
     --batch_size 16 \
     --log_samples \
-    --output_path "$OUTPUT_DIR" \
-    --wandb_log_samples \
-    --wandb_args project=lmms-eval,job_type=eval,name="$RUN_NAME" \
+    --output_path "$OUTPUT_DIR"
+    # --wandb_log_samples \
+    # --wandb_args project=lmms-eval,job_type=eval,name="$RUN_NAME" \
