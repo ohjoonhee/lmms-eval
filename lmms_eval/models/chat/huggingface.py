@@ -1,15 +1,14 @@
-import base64
-import re
 import time
-from io import BytesIO
 from typing import List, Optional, Tuple, Union
 
-import decord
-import numpy as np
 import torch
+
+try:
+    import decord
+except ImportError:
+    decord = None
 from accelerate import Accelerator, DistributedType
 from loguru import logger as eval_logger
-from PIL import Image
 from tqdm import tqdm
 from transformers import (
     AutoConfig,
@@ -33,6 +32,7 @@ from lmms_eval.protocol import ChatMessages
 try:
     from qwen_vl_utils import process_vision_info
 except ImportError:
+    process_vision_info = None
     eval_logger.warning("Failed to import qwen_vl_utils; Please install it via `pip install qwen-vl-utils`")
 
 
@@ -201,11 +201,16 @@ class Huggingface(lmms):
         # we group requests by their generation_kwargs,
         # so that we don't try to execute e.g. greedy sampling and temp=0.8 sampling
         # in the same batch.
-        re_ords = utils.Collator([reg.args for reg in requests], _collate, group_fn=lambda x: x[2], grouping=True)
+        re_ords = utils.Collator(
+            [reg.args for reg in requests],
+            _collate,
+            group_fn=lambda x: x[2],
+            grouping=True,
+        )
         chunks = re_ords.get_batched(n=self.batch_size, batch_fn=None)
         num_iters = len(requests) // self.batch_size if len(requests) % self.batch_size == 0 else len(requests) // self.batch_size + 1
         pbar = tqdm(total=num_iters, disable=(self.rank != 0), desc="Model Responding")
-        e2e_latency = 0
+        total_elapsed_time = 0
         total_tokens = 0
         for chunk in chunks:
             ctx, doc_to_messages, all_gen_kwargs, doc_id, task, split = zip(*chunk)
@@ -276,10 +281,14 @@ class Huggingface(lmms):
             end_time = time.time()
 
             generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, cont)]
-            answers = self.processor.batch_decode(generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+            answers = self.processor.batch_decode(
+                generated_ids_trimmed,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
 
             # Calculate timing metrics for batch
-            e2e_latency += end_time - start_time
+            total_elapsed_time += end_time - start_time
             total_tokens += sum(len(ids) for ids in generated_ids_trimmed)
 
             for ans, context in zip(answers, texts):
@@ -294,11 +303,11 @@ class Huggingface(lmms):
             # reorder this group of results back to original unsorted form
         res = re_ords.get_original(res)
         # Calculate average speed
-        avg_speed = total_tokens / e2e_latency if e2e_latency > 0 else 0
+        avg_speed = total_tokens / total_elapsed_time if total_elapsed_time > 0 else 0
         # Log metrics
         metric_dict = {
-            "total_tokens": total_tokens,
-            "e2e_latency": e2e_latency,
+            "total_gen_tokens": total_tokens,
+            "total_elapsed_time": total_elapsed_time,
             "avg_speed": avg_speed,
         }
         log_metrics(**metric_dict)

@@ -2,11 +2,10 @@ import copy as cp
 import os
 import string
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
+import requests
 from loguru import logger as eval_logger
-from tqdm import tqdm
 
 from lmms_eval.llm_judge import Request, ServerConfig, get_server
 

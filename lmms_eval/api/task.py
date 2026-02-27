@@ -10,17 +10,13 @@ import re
 import shutil
 import subprocess
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from functools import partial
 from glob import glob
 from typing import (
     Any,
-    Dict,
-    Iterable,
     Iterator,
     List,
-    Literal,
-    Mapping,
     Optional,
     Tuple,
     Union,
@@ -44,7 +40,6 @@ from lmms_eval.api.registry import (
     AGGREGATION_REGISTRY,
     DEFAULT_METRIC_REGISTRY,
     METRIC_REGISTRY,
-    OUTPUT_TYPE_REGISTRY,
     get_aggregation,
     get_metric,
     get_metric_aggregation,
@@ -122,8 +117,7 @@ class TaskConfig(dict):
 
     def __post_init__(self) -> None:
         if self.dataset_path and os.path.exists(os.path.dirname(self.dataset_path)):
-            import inspect
-            from importlib import import_module
+            pass
 
             # self.dataset_path = inspect.getfile(import_module(self.dataset_path))
 
@@ -389,6 +383,7 @@ class Task(abc.ABC):
         self,
         *,
         limit: Union[int, None] = None,
+        offset: int = 0,
         rank: int = 0,
         world_size: int = 1,
         cache_requests: bool = False,
@@ -413,6 +408,8 @@ class Task(abc.ABC):
         og_limit = limit
 
         cache_key = f"requests-{self._config.task}-{self.config.num_fewshot}shot-rank{rank}-world_size{world_size}"
+        if offset:
+            cache_key += f"-offset{offset}"
         cache_key += "-chat_template" if apply_chat_template else ""
         cache_key += "-fewshot_as_multiturn" if fewshot_as_multiturn else ""
         cache_key += f"-system_prompt_hash{utils.hash_string(system_instruction)}" if system_instruction is not None else ""
@@ -436,8 +433,30 @@ class Task(abc.ABC):
         if cache_requests and (not cached_instances or rewrite_requests_cache) and limit is not None:
             limit = None
 
-        doc_id_docs = utils.create_iterator(enumerate(self.eval_docs_no_media), rank=rank, limit=int(limit) if limit else None, world_size=world_size)
-        doc_iterator_for_counting = itertools.islice(range(len(self.test_docs())), rank, limit, world_size) if self.has_test_docs() else itertools.islice(range(len(self.validation_docs())), rank, limit, world_size)
+        doc_id_docs = utils.create_iterator(
+            enumerate(self.eval_docs_no_media),
+            rank=rank,
+            limit=int(limit) if limit else None,
+            world_size=world_size,
+            offset=offset,
+        )
+        doc_iterator_for_counting = (
+            utils.create_iterator(
+                range(len(self.test_docs())),
+                rank=rank,
+                limit=limit,
+                world_size=world_size,
+                offset=offset,
+            )
+            if self.has_test_docs()
+            else utils.create_iterator(
+                range(len(self.validation_docs())),
+                rank=rank,
+                limit=limit,
+                world_size=world_size,
+                offset=offset,
+            )
+        )
 
         num_docs = sum(1 for _ in doc_iterator_for_counting)
 
@@ -665,13 +684,14 @@ class Task(abc.ABC):
         else:
             raise ValueError(f"Task dataset (path={self.DATASET_PATH}, name={self.DATASET_NAME}) must have valid or test docs!")
 
-    def doc_iterator(self, *, rank: int = 0, limit: Union[int, None] = None, world_size: int = 1) -> Iterator[Tuple[int, Any]]:
+    def doc_iterator(self, *, rank: int = 0, limit: Union[int, None] = None, world_size: int = 1, offset: int = 0) -> Iterator[Tuple[int, Any]]:
         limit = int(limit) if limit else None
         doc_iterator = utils.create_iterator(
             enumerate(self.eval_docs),
             rank=int(rank),
             limit=limit,
             world_size=int(world_size),
+            offset=offset,
         )
         return doc_iterator
 
@@ -1009,10 +1029,10 @@ class ConfigurableTask(Task):
                             eval_logger.info(f"Extracting following tar files: {parts}")
                             output_tar = base_name + ".tar"
                             if not os.path.exists(output_tar):
-                                eval_logger.info(f"Start concatenating tar files")
+                                eval_logger.info("Start concatenating tar files")
 
                                 concat_tar_parts(parts, output_tar)
-                                eval_logger.info(f"Finish concatenating tar files")
+                                eval_logger.info("Finish concatenating tar files")
 
                             if not os.path.exists(os.path.join(cache_dir, os.path.basename(base_name))):
                                 untar_video_data(output_tar)
@@ -1642,7 +1662,7 @@ class ConfigurableTask(Task):
         return getattr(self.config, "task", None)
 
     def __repr__(self):
-        return f"ConfigurableTask(task_name={getattr(self.config, 'task', None)}," f"output_type={self.OUTPUT_TYPE}," f"num_fewshot={getattr(self.config, 'num_fewshot', None)}," f"num_samples={len(self.eval_docs)})"
+        return f"ConfigurableTask(task_name={getattr(self.config, 'task', None)}," f"output_type={self.OUTPUT_TYPE}," f"num_fewshot={getattr(self.config, 'num_fewshot', None)}," f"repeats={getattr(self.config, 'repeats', None)})"
 
 
 class ConfigurableMessagesTask(ConfigurableTask):
@@ -1692,4 +1712,4 @@ class ConfigurableMessagesTask(ConfigurableTask):
         return Instance(request_type=self.OUTPUT_TYPE, arguments=arguments, idx=0, task_name=self.config.task, doc_id=doc_id, **kwargs)
 
     def __repr__(self):
-        return f"ConfigurableMessagesTask(task_name={getattr(self.config, 'task', None)}," f"output_type={self.OUTPUT_TYPE}," f"num_fewshot={getattr(self.config, 'num_fewshot', None)}," f"num_samples={len(self.eval_docs)})"
+        return f"ConfigurableMessagesTask(task_name={getattr(self.config, 'task', None)}," f"output_type={self.OUTPUT_TYPE}," f"num_fewshot={getattr(self.config, 'num_fewshot', None)}," f"repeats={getattr(self.config, 'repeats', None)})"

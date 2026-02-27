@@ -1,23 +1,22 @@
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 from tqdm import tqdm
 from transformers import AutoProcessor
 
 from lmms_eval.api.instance import Instance
 from lmms_eval.api.registry import register_model
+from lmms_eval.imports import optional_import
 from lmms_eval.models.chat.vllm import VLLM as VLLMChat
 from lmms_eval.models.model_utils.gen_metrics import log_metrics
 from lmms_eval.protocol import ChatMessages
 
-try:
-    from vllm import LLM, SamplingParams
-except ImportError:
-    vllm = None
-
-from qwen_vl_utils import fetch_video, process_vision_info
+LLM, _ = optional_import("vllm", "LLM")
+SamplingParams, _ = optional_import("vllm", "SamplingParams")
+fetch_video, _ = optional_import("qwen_vl_utils", "fetch_video")
+process_vision_info, _ = optional_import("qwen_vl_utils", "process_vision_info")
 
 WORKERS = int(os.getenv("WORKERS", "32"))
 
@@ -55,7 +54,21 @@ class VLLMGenerate(VLLMChat):
         nframes: Optional[int] = 32,
         **kwargs,
     ):
-        super().__init__(model, tensor_parallel_size, data_parallel_size, gpu_memory_utilization, batch_size, max_frame_num, trust_remote_code, chat_template, max_pixels, min_image_pixels, fps, nframes, **kwargs)
+        super().__init__(
+            model,
+            tensor_parallel_size,
+            data_parallel_size,
+            gpu_memory_utilization,
+            batch_size,
+            max_frame_num,
+            trust_remote_code,
+            chat_template,
+            max_pixels,
+            min_image_pixels,
+            fps,
+            nframes,
+            **kwargs,
+        )
         self.processor = AutoProcessor.from_pretrained(model)
         if self.chat_template is not None:
             with open(self.chat_template, "r") as f:
@@ -141,13 +154,11 @@ class VLLMGenerate(VLLMChat):
 
     def generate_until(self, requests) -> List[str]:
         res = []
-        self.load_cache()
-        res, requests = self.get_response_from_cache(requests)
         pbar = tqdm(total=len(requests), disable=(self.rank != 0), desc="Model Responding")
 
         batch_size = self.batch_size_per_gpu
         batched_requests = [requests[i : i + batch_size] for i in range(0, len(requests), batch_size)]
-        e2e_latency = 0
+        total_elapsed_time = 0
         for batch_requests in batched_requests:
             batched_vllm_inputs = []
             with ThreadPoolExecutor(max_workers=WORKERS) as executor:
@@ -162,11 +173,9 @@ class VLLMGenerate(VLLMChat):
             end_time = time.time()
 
             response_text = [o.outputs[0].text for o in response]
-            for req, text in zip(batch_requests, response_text):
-                self.add_request_response_to_cache(req, text)
 
             # Calculate timing metrics for batch
-            e2e_latency += end_time - start_time
+            total_elapsed_time += end_time - start_time
 
             assert len(response_text) == len(batch_requests)
             res.extend(response_text)
@@ -175,10 +184,10 @@ class VLLMGenerate(VLLMChat):
         if not self.disable_log_stats:
             metrics = self.get_format_metrics()
             total_tokens = metrics["generation_tokens"]
-            avg_speed = total_tokens / e2e_latency if e2e_latency > 0 else 0
+            avg_speed = total_tokens / total_elapsed_time if total_elapsed_time > 0 else 0
             metric_dict = {
-                "total_tokens": total_tokens,
-                "e2e_latency": e2e_latency,
+                "total_gen_tokens": total_tokens,
+                "total_elapsed_time": total_elapsed_time,
                 "avg_speed": avg_speed,
                 "additional_metrics": {
                     "ttft": metrics["ttft"],

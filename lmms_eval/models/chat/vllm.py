@@ -1,21 +1,20 @@
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 from loguru import logger as eval_logger
 from tqdm import tqdm
 
 from lmms_eval.api.instance import Instance
 from lmms_eval.api.registry import register_model
+from lmms_eval.imports import optional_import
 from lmms_eval.models.model_utils.gen_metrics import log_metrics
 from lmms_eval.models.simple.vllm import VLLM as VLLMSimple
 from lmms_eval.protocol import ChatMessages
 
-try:
-    from vllm import LLM, SamplingParams
-except ImportError:
-    vllm = None
+LLM, _ = optional_import("vllm", "LLM")
+SamplingParams, _ = optional_import("vllm", "SamplingParams")
 
 WORKERS = int(os.getenv("WORKERS", "32"))
 
@@ -90,17 +89,11 @@ class VLLM(VLLMSimple):
 
     def generate_until(self, requests) -> List[str]:
         res = []
-        self.load_cache()
-        res, requests = self.get_response_from_cache(requests)
-        pbar = tqdm(
-            total=len(requests), disable=(self.rank != 0), desc="Model Responding"
-        )
+        pbar = tqdm(total=len(requests), disable=(self.rank != 0), desc="Model Responding")
 
         batch_size = self.batch_size_per_gpu
-        batched_requests = [
-            requests[i : i + batch_size] for i in range(0, len(requests), batch_size)
-        ]
-        e2e_latency = 0
+        batched_requests = [requests[i : i + batch_size] for i in range(0, len(requests), batch_size)]
+        total_elapsed_time = 0
         for batch_requests in batched_requests:
             batched_messages = []
             with ThreadPoolExecutor(max_workers=WORKERS) as executor:
@@ -163,30 +156,17 @@ class VLLM(VLLMSimple):
 
             sampling_params = SamplingParams(**sampling_params)
             start_time = time.time()
-            if self.chat_template is not None:
-                with open(self.chat_template, "r") as f:
-                    chat_template = f.read()
-                response = self.client.chat(
-                    sampling_params=sampling_params,
-                    messages=batched_messages,
-                    chat_template=chat_template,
-                    use_tqdm=False,
-                )
-            else:
-                response = self.client.chat(
-                    sampling_params=sampling_params,
-                    messages=batched_messages,
-                    use_tqdm=False,
-                )
+            response = self.client.chat(
+                sampling_params=sampling_params,
+                messages=batched_messages,
+                chat_template=self.chat_template,
+            )
             end_time = time.time()
 
             response_text = [o.outputs[0].text for o in response]
 
-            for req, text in zip(batch_requests, response_text):
-                self.add_request_response_to_cache(req, text)
-
             # Calculate timing metrics for batch
-            e2e_latency += end_time - start_time
+            total_elapsed_time += end_time - start_time
 
             assert len(response_text) == len(batch_requests)
             res.extend(response_text)
@@ -195,10 +175,10 @@ class VLLM(VLLMSimple):
         if not self.disable_log_stats:
             metrics = self.get_format_metrics()
             total_tokens = metrics["generation_tokens"]
-            avg_speed = total_tokens / e2e_latency if e2e_latency > 0 else 0
+            avg_speed = total_tokens / total_elapsed_time if total_elapsed_time > 0 else 0
             metric_dict = {
-                "total_tokens": total_tokens,
-                "e2e_latency": e2e_latency,
+                "total_gen_tokens": total_tokens,
+                "total_elapsed_time": total_elapsed_time,
                 "avg_speed": avg_speed,
                 "additional_metrics": {
                     "ttft": metrics["ttft"],

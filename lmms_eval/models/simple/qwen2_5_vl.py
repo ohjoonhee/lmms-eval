@@ -20,16 +20,14 @@ from lmms_eval import utils
 from lmms_eval.api.instance import Instance
 from lmms_eval.api.model import lmms
 from lmms_eval.api.registry import register_model
+from lmms_eval.imports import optional_import
 from lmms_eval.models.model_utils.reasoning_model_utils import (
     parse_reasoning_model_answer,
 )
 
-try:
-    from qwen_vl_utils import process_vision_info
-except ImportError:
-    eval_logger.warning(
-        "Failed to import qwen_vl_utils; Please install it via `pip install qwen-vl-utils`"
-    )
+process_vision_info, _has_qwen_vl = optional_import("qwen_vl_utils", "process_vision_info")
+if not _has_qwen_vl:
+    eval_logger.warning("Failed to import qwen_vl_utils; Please install it via `pip install qwen-vl-utils`")
 
 
 @register_model("qwen2_5_vl")
@@ -278,9 +276,7 @@ class Qwen2_5_VL(lmms):
                                     "min_pixels": self.min_pixels,
                                 }
                             )
-                        elif isinstance(
-                            visual, Image.Image
-                        ):  # Handle both single and multiple images
+                        elif isinstance(visual, Image.Image):  # Handle both single and multiple images
                             base64_image = visual.convert("RGB")
                             buffer = BytesIO()
                             base64_image.save(buffer, format="JPEG")
@@ -447,10 +443,7 @@ class Qwen2_5_VL(lmms):
                 use_cache=self.use_cache,
             )
 
-            generated_ids_trimmed = [
-                out_ids[len(in_ids) :]
-                for in_ids, out_ids in zip(inputs.input_ids, cont)
-            ]
+            generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, cont)]
             answers = self.processor.batch_decode(
                 generated_ids_trimmed,
                 skip_special_tokens=True,
@@ -759,10 +752,7 @@ class Qwen2_5_VL(lmms):
                     use_cache=self.use_cache,
                 )
 
-                generated_ids_trimmed = [
-                    out_ids[len(in_ids) :]
-                    for in_ids, out_ids in zip(inputs.input_ids, cont)
-                ]
+                generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, cont)]
                 answers = self.processor.batch_decode(
                     generated_ids_trimmed,
                     skip_special_tokens=True,

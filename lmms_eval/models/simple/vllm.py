@@ -1,12 +1,8 @@
-import asyncio
 import base64
 import json
 import os
-import time
 from concurrent.futures import ThreadPoolExecutor
-from copy import deepcopy
 from io import BytesIO
-from multiprocessing import cpu_count
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -19,14 +15,13 @@ from tqdm import tqdm
 from lmms_eval.api.instance import Instance
 from lmms_eval.api.model import lmms
 from lmms_eval.api.registry import register_model
+from lmms_eval.imports import optional_import
 
 NUM_SECONDS_TO_SLEEP = int(os.getenv("NUM_SECONDS_TO_SLEEP", "5"))
 WORKERS = int(os.getenv("WORKERS", "32"))
 
-try:
-    from vllm import LLM, SamplingParams
-except ImportError:
-    vllm = None
+LLM, _has_vllm = optional_import("vllm", "LLM")
+SamplingParams, _ = optional_import("vllm", "SamplingParams")
 
 
 @register_model("vllm")

@@ -7,7 +7,9 @@ lm_cache
 .idea
 build
 dist
+!lmms_eval/tui/web/dist
 *.egg-info
+node_modules/
 venv
 .vscode/
 temp
@@ -30,7 +32,7 @@ cache_dir
 ckpt
 pretrained/
 LLaVA/
-*logs
+/*logs
 *.isorted
 temp/
 InternVL/
@@ -50,6 +52,8 @@ uv.lock
 workspace/*
 **/workspace/*
 .claude/*
+!.claude-plugin/
+.opencode/
 remote_code/*
 
 # Profiling files
@@ -65,3 +69,6 @@ MESSAGE.txt
 .envrc
 
 data/
+docs/plans/
+.opencode
+.worktrees/
