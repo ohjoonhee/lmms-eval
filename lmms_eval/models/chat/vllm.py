@@ -97,10 +97,7 @@ class VLLM(VLLMSimple):
         for batch_requests in batched_requests:
             batched_messages = []
             with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-                futures = [
-                    executor.submit(self.make_one_request, request)
-                    for request in batch_requests
-                ]
+                futures = [executor.submit(self.make_one_request, request) for request in batch_requests]
                 for future in futures:
                     messages, sampling_params = future.result()
                     batched_messages.append(messages)
@@ -110,9 +107,7 @@ class VLLM(VLLMSimple):
                 import json
 
                 for idx, msgs in enumerate(batched_messages):
-                    eval_logger.info(
-                        f"[DEBUG] Request {idx + 1}/{len(batched_messages)} - Raw Messages Structure:"
-                    )
+                    eval_logger.info(f"[DEBUG] Request {idx + 1}/{len(batched_messages)} - Raw Messages Structure:")
                     # Show raw structure, truncating base64 image data
                     debug_msgs = []
                     for m in msgs:
@@ -124,24 +119,12 @@ class VLLM(VLLMSimple):
                                 if isinstance(item, dict):
                                     debug_item = dict(item)
                                     # Truncate base64 image data in image_url for readability
-                                    if (
-                                        debug_item.get("type") == "image_url"
-                                        and "image_url" in debug_item
-                                    ):
+                                    if debug_item.get("type") == "image_url" and "image_url" in debug_item:
                                         img_url = debug_item["image_url"]
-                                        if (
-                                            isinstance(img_url, dict)
-                                            and "url" in img_url
-                                        ):
+                                        if isinstance(img_url, dict) and "url" in img_url:
                                             url_val = img_url["url"]
-                                            if (
-                                                isinstance(url_val, str)
-                                                and len(url_val) > 100
-                                            ):
-                                                debug_item["image_url"] = {
-                                                    "url": url_val[:100]
-                                                    + f"... ({len(url_val)} chars)"
-                                                }
+                                            if isinstance(url_val, str) and len(url_val) > 100:
+                                                debug_item["image_url"] = {"url": url_val[:100] + f"... ({len(url_val)} chars)"}
                                     debug_content.append(debug_item)
                                 else:
                                     debug_content.append(item)
@@ -149,9 +132,7 @@ class VLLM(VLLMSimple):
                         else:
                             debug_m["content"] = content
                         debug_msgs.append(debug_m)
-                    eval_logger.info(
-                        f"[DEBUG] {json.dumps(debug_msgs, indent=2, ensure_ascii=False)}"
-                    )
+                    eval_logger.info(f"[DEBUG] {json.dumps(debug_msgs, indent=2, ensure_ascii=False)}")
                     eval_logger.info("[DEBUG] " + "=" * 80)
 
             sampling_params = SamplingParams(**sampling_params)
@@ -206,13 +187,9 @@ class VLLM(VLLMSimple):
         for metric in metrics:
             name = metric.name
             if "time_to_first_token" in name:
-                ttft = (
-                    metric.sum / metric.count if metric.count > 0 else 0
-                )  # When there's no "Not cached requests", count can be 0
+                ttft = metric.sum / metric.count if metric.count > 0 else 0  # When there's no "Not cached requests", count can be 0
             if "time_per_output_token_seconds" in name:
-                tpot = (
-                    metric.sum / metric.count if metric.count > 0 else 0
-                )  # When there's no "Not cached requests", count can be 0
+                tpot = metric.sum / metric.count if metric.count > 0 else 0  # When there's no "Not cached requests", count can be 0
             if name == "vllm:generation_tokens":
                 generation_tokens = metric.value
 

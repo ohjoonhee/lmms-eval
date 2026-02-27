@@ -81,7 +81,6 @@ def hrbench_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
             # Add system message if needed
             messages.append({"role": "system", "content": [{"type": "text", "text": lmms_eval_specific_kwargs["system_prompt"]}]})
 
-
     USER_PROMPT = """
     Context: {caption}
     Question: {question}"""

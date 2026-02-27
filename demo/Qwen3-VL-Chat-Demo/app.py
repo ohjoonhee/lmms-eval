@@ -1,19 +1,33 @@
 import base64
-from http import HTTPStatus
 import os
-import uuid
 import time
+import uuid
+from http import HTTPStatus
+
 import gradio as gr
-from gradio_client import utils as client_utils
 import modelscope_studio.components.antd as antd
 import modelscope_studio.components.antdx as antdx
 import modelscope_studio.components.base as ms
 import modelscope_studio.components.pro as pro
-from config import DEFAULT_THEME, DEFAULT_SYS_PROMPT, save_history, get_text, user_config, bot_config, welcome_config, markdown_config, upload_config, api_key, base_url, MODEL, THINKING_MODEL
+from config import (
+    DEFAULT_SYS_PROMPT,
+    DEFAULT_THEME,
+    MODEL,
+    THINKING_MODEL,
+    api_key,
+    base_url,
+    bot_config,
+    get_text,
+    markdown_config,
+    save_history,
+    upload_config,
+    user_config,
+    welcome_config,
+)
+from gradio_client import utils as client_utils
+from openai import OpenAI
 from ui_components.logo import Logo
 from ui_components.thinking_button import ThinkingButton
-
-from openai import OpenAI
 
 client = OpenAI(
     api_key=api_key,
@@ -385,9 +399,7 @@ with gr.Blocks(css=css, fill_width=True) as demo:
             with antd.Col(flex=1, elem_style=dict(height="100%")):
                 with antd.Flex(vertical=True, gap="small", elem_classes="chatbot-chat"):
                     # Chatbot
-                    chatbot = pro.Chatbot(
-                        elem_classes="chatbot-chat-messages", height=0, markdown_config=markdown_config(), welcome_config=welcome_config(), user_config=user_config(), bot_config=bot_config()
-                    )
+                    chatbot = pro.Chatbot(elem_classes="chatbot-chat-messages", height=0, markdown_config=markdown_config(), welcome_config=welcome_config(), user_config=user_config(), bot_config=bot_config())
 
                     # Input
                     with pro.MultimodalInput(placeholder=get_text("How can I help you today?", "有什么我能帮助您的吗？"), upload_config=upload_config()) as input:
@@ -422,14 +434,10 @@ with gr.Blocks(css=css, fill_width=True) as demo:
     chatbot.delete(fn=Gradio_Events.delete_message, inputs=[state], outputs=[state])
     chatbot.edit(fn=Gradio_Events.edit_message, inputs=[state, chatbot], outputs=[state, chatbot])
 
-    regenerating_event = chatbot.retry(
-        fn=Gradio_Events.regenerate_message, inputs=[thinking_btn_state, state], outputs=[input, clear_btn, conversation_delete_menu_item, add_conversation_btn, conversations, chatbot, state]
-    )
+    regenerating_event = chatbot.retry(fn=Gradio_Events.regenerate_message, inputs=[thinking_btn_state, state], outputs=[input, clear_btn, conversation_delete_menu_item, add_conversation_btn, conversations, chatbot, state])
 
     # Input Handler
-    submit_event = input.submit(
-        fn=Gradio_Events.add_message, inputs=[input, thinking_btn_state, state], outputs=[input, clear_btn, conversation_delete_menu_item, add_conversation_btn, conversations, chatbot, state]
-    )
+    submit_event = input.submit(fn=Gradio_Events.add_message, inputs=[input, thinking_btn_state, state], outputs=[input, clear_btn, conversation_delete_menu_item, add_conversation_btn, conversations, chatbot, state])
     input.cancel(
         fn=Gradio_Events.cancel,
         inputs=[state],

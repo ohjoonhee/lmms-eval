@@ -7,9 +7,8 @@ from collections import defaultdict
 from loguru import logger as eval_logger
 from PIL import Image
 
-from lmms_eval.tasks._task_utils.file_utils import generate_submission_file
 from lmms_eval.llm_judge import Request, ServerConfig, get_server
-
+from lmms_eval.tasks._task_utils.file_utils import generate_submission_file
 
 dir_name = os.path.dirname(os.path.abspath(__file__))
 
@@ -73,6 +72,7 @@ def mmstar_oc_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     prompt += f"{post_prompt}"
     prompt = prompt.rstrip()
     return prompt
+
 
 def mmstar_oc_v3_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     """

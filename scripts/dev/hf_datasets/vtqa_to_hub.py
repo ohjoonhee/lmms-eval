@@ -13,9 +13,7 @@ from datasets import load_from_disk
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Push a locally saved VTQA dataset to HuggingFace Hub"
-    )
+    parser = argparse.ArgumentParser(description="Push a locally saved VTQA dataset to HuggingFace Hub")
     parser.add_argument(
         "--input_dir",
         type=str,

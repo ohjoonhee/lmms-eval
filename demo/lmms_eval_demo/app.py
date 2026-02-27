@@ -1,9 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os, sys, json, argparse, pathlib, math, io, re, base64
+import argparse
+import base64
+import io
+import json
+import math
+import os
+import pathlib
+import re
+import sys
 from datetime import datetime
 
-from flask import Flask, request, abort, send_file, redirect, url_for, render_template_string, make_response
+from flask import (
+    Flask,
+    abort,
+    make_response,
+    redirect,
+    render_template_string,
+    request,
+    send_file,
+    url_for,
+)
 from markupsafe import Markup, escape  # Flask 3.x: import from markupsafe
 
 # Optional deps: datasets / pillow / numpy (install if needed)

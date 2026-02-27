@@ -109,9 +109,7 @@ def load_annotations(extract_dir: Path, split_name: str) -> list[dict]:
             with open(json_path, encoding="utf-8") as f:
                 return json.load(f)
 
-    raise FileNotFoundError(
-        f"Could not find {SPLIT_FILES[split_name]} under {extract_dir}"
-    )
+    raise FileNotFoundError(f"Could not find {SPLIT_FILES[split_name]} under {extract_dir}")
 
 
 def find_image_dir(extract_dir: Path) -> Path:
@@ -120,9 +118,7 @@ def find_image_dir(extract_dir: Path) -> Path:
     for candidate in [extract_dir / "image", extract_dir]:
         if candidate.is_dir():
             # Check if it has split subdirectories or image files
-            has_split_dirs = any(
-                (candidate / s).is_dir() for s in ["train", "val", "test_dev", "test"]
-            )
+            has_split_dirs = any((candidate / s).is_dir() for s in ["train", "val", "test_dev", "test"])
             if has_split_dirs:
                 return candidate
 
@@ -166,9 +162,7 @@ def build_split(
         if image_path is None:
             skipped += 1
             if skipped <= 5:
-                logger.warning(
-                    "Image not found: %s (split=%s), skipping", image_name, split_name
-                )
+                logger.warning("Image not found: %s (split=%s), skipping", image_name, split_name)
             continue
 
         # Build answers list
@@ -239,9 +233,7 @@ def records_to_dataset(records: list[dict]) -> datasets.Dataset:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Convert CalfKing/vtqa2023 to standard HF dataset"
-    )
+    parser = argparse.ArgumentParser(description="Convert CalfKing/vtqa2023 to standard HF dataset")
     parser.add_argument(
         "--mode",
         type=str,
@@ -293,9 +285,7 @@ def main() -> None:
     if args.mode == "hub" and not args.repo_id:
         parser.error("--repo_id is required when --mode is 'hub'")
 
-    cache_dir = Path(args.cache_dir) if args.cache_dir else Path(
-        args.output_dir if args.output_dir else "."
-    ) / ".cache"
+    cache_dir = Path(args.cache_dir) if args.cache_dir else Path(args.output_dir if args.output_dir else ".") / ".cache"
 
     # Step 1: Download and extract raw data
     logger.info("Step 1: Downloading and extracting raw data...")

@@ -1,18 +1,17 @@
-
-import os
-import json
 import base64
+import json
 import math
+import os
 import uuid
-import dotenv
 from io import BytesIO
 from math import ceil, floor
 from typing import List, Union
 
-import requests
-from PIL import Image
-from openai import OpenAI
+import dotenv
 import qwen_agent
+import requests
+from openai import OpenAI
+from PIL import Image
 
 # from qwen_agent.utils.utils import extract_images_from_messages
 

@@ -1,8 +1,9 @@
 import base64
+import os
+import uuid
 from io import BytesIO
 from typing import Any, Dict, List, Literal, Union
-import uuid
-import os
+
 import numpy as np
 from PIL import Image
 from pydantic import BaseModel
@@ -152,8 +153,8 @@ class ChatMessages(BaseModel):
             openai_messages.append(openai_message)
         return openai_messages
 
-    def to_qwen3_agent_openai_messages(self, temp_dir = None, video_kwargs: Dict[str, Any] = {}):
-        def _save_image(image: Image.Image, directory = None) -> str:
+    def to_qwen3_agent_openai_messages(self, temp_dir=None, video_kwargs: Dict[str, Any] = {}):
+        def _save_image(image: Image.Image, directory=None) -> str:
             """Save PIL image to temp file and return path."""
             img_id = str(uuid.uuid4())
             img_path = os.path.join(directory, f"{img_id}.png")

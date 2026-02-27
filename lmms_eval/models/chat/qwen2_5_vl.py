@@ -46,23 +46,14 @@ class Qwen2_5_VL(Qwen2_5_VLSimple):
             grouping=True,
         )
         chunks = re_ords.get_batched(n=self.batch_size, batch_fn=None)
-        num_iters = (
-            len(requests) // self.batch_size
-            if len(requests) % self.batch_size == 0
-            else len(requests) // self.batch_size + 1
-        )
+        num_iters = len(requests) // self.batch_size if len(requests) % self.batch_size == 0 else len(requests) // self.batch_size + 1
         pbar = tqdm(total=num_iters, disable=(self.rank != 0), desc="Model Responding")
         total_elapsed_time = 0
         total_tokens = 0
         for chunk in chunks:
             ctx, doc_to_messages, all_gen_kwargs, doc_id, task, split = zip(*chunk)
-            chat_messages = [
-                doc_to_messages[idx](self.task_dict[task][split][ids])
-                for idx, (ids, task, split) in enumerate(zip(doc_id, task, split))
-            ]
-            chat_messages: List[ChatMessages] = [
-                ChatMessages(**{"messages": message}) for message in chat_messages
-            ]
+            chat_messages = [doc_to_messages[idx](self.task_dict[task][split][ids]) for idx, (ids, task, split) in enumerate(zip(doc_id, task, split))]
+            chat_messages: List[ChatMessages] = [ChatMessages(**{"messages": message}) for message in chat_messages]
             visuals = []
             videos = []
             for messages in chat_messages:
@@ -152,10 +143,7 @@ class Qwen2_5_VL(Qwen2_5_VLSimple):
             )
             end_time = time.time()
 
-            generated_ids_trimmed = [
-                out_ids[len(in_ids) :]
-                for in_ids, out_ids in zip(inputs.input_ids, cont)
-            ]
+            generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, cont)]
             answers = self.processor.batch_decode(
                 generated_ids_trimmed,
                 skip_special_tokens=True,
@@ -169,9 +157,7 @@ class Qwen2_5_VL(Qwen2_5_VLSimple):
             for ans, context in zip(answers, texts):
                 clean_ans = parse_reasoning_model_answer(ans)
                 res.append(clean_ans)
-                self.cache_hook.add_partial(
-                    "generate_until", (context, gen_kwargs), clean_ans
-                )
+                self.cache_hook.add_partial("generate_until", (context, gen_kwargs), clean_ans)
 
                 eval_logger.debug(f"Question: {context}")
                 eval_logger.debug(f"Model Raw Response: {ans}")

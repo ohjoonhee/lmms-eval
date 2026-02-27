@@ -1,17 +1,18 @@
 import os
-import unittest
-from unittest.mock import MagicMock, patch
-from PIL import Image
-import tempfile
 import shutil
 
 # Make sure we can import from lmms_eval
 import sys
+import tempfile
+import unittest
+from unittest.mock import MagicMock, patch
+
+from PIL import Image
 
 sys.path.append(os.getcwd())
 
-from lmms_eval.models.chat.qwen_agent import QwenAgent
 from lmms_eval.api.instance import Instance
+from lmms_eval.models.chat.qwen_agent import QwenAgent
 
 
 class TestQwenAgent(unittest.TestCase):

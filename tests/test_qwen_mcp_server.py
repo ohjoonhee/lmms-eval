@@ -1,8 +1,9 @@
-import sys
-import os
 import base64
-from PIL import Image
+import os
+import sys
 from io import BytesIO
+
+from PIL import Image
 
 # Add project root to sys.path to ensure we can import the module if needed
 sys.path.append(os.getcwd())

@@ -56,9 +56,7 @@ from pathlib import Path
 import datasets
 from huggingface_hub import hf_hub_download
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 REPO_ID = "pix2fact/Pix2FactBenchmark"
@@ -189,9 +187,7 @@ def records_to_dataset(records: list[dict]) -> datasets.Dataset:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Convert pix2fact/Pix2FactBenchmark to standard HF dataset"
-    )
+    parser = argparse.ArgumentParser(description="Convert pix2fact/Pix2FactBenchmark to standard HF dataset")
     parser.add_argument(
         "--save-to-disk",
         type=str,
@@ -228,11 +224,7 @@ def main() -> None:
     if not args.save_to_disk and not args.push_to_hub:
         parser.error("At least one of --save-to-disk or --push-to-hub is required")
 
-    cache_dir = (
-        Path(args.cache_dir)
-        if args.cache_dir
-        else Path(args.save_to_disk if args.save_to_disk else ".") / ".cache"
-    )
+    cache_dir = Path(args.cache_dir) if args.cache_dir else Path(args.save_to_disk if args.save_to_disk else ".") / ".cache"
 
     # Step 1: Download CSV
     logger.info("Step 1: Downloading metadata CSV ...")
