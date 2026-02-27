@@ -51,9 +51,11 @@ def vstar_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
     text = vstar_doc_to_text(doc, lmms_eval_specific_kwargs)
 
     messages = []
-    if "system_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["system_prompt"]:
-        system_prompt = lmms_eval_specific_kwargs["system_prompt"]
-        messages.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
+    if lmms_eval_specific_kwargs:
+        # Check for system_instruction (CLI standard) or system_prompt (legacy)
+        system_prompt = lmms_eval_specific_kwargs.get("system_instruction") or lmms_eval_specific_kwargs.get("system_prompt")
+        if system_prompt:
+            messages.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
 
     user_content = []
     for img in imgs:

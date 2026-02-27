@@ -4,11 +4,12 @@ from typing import Optional
 from loguru import logger as eval_logger
 
 
-def viewspatial_doc_to_text(doc):
+def viewspatial_doc_to_text(doc, lmms_eval_specific_kwargs: Optional[dict] = None):
     """Extracts the text prompt from a viewspatial dataset sample.
 
     Args:
         doc (dict): A viewspatial dataset sample dictionary.
+        lmms_eval_specific_kwargs (dict, optional): Model-specific kwargs with pre_prompt/post_prompt.
 
     Returns:
         str: The input prompt text.
@@ -19,10 +20,48 @@ def viewspatial_doc_to_text(doc):
     # prompt format from viewspatial bench paper
     question_text = f"Question: {question}\n"
     choices_text = f"Choices: {choices}\n"
+
+    pre_prompt = ""
     post_prompt = "Reply only to the corresponding option.\nAnswer:"
+    if lmms_eval_specific_kwargs:
+        if "pre_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["pre_prompt"]:
+            pre_prompt = lmms_eval_specific_kwargs["pre_prompt"]
+        if "post_prompt" in lmms_eval_specific_kwargs and lmms_eval_specific_kwargs["post_prompt"]:
+            post_prompt = lmms_eval_specific_kwargs["post_prompt"]
 
     prompt = question_text + choices_text + post_prompt
+    if pre_prompt:
+        prompt = f"{pre_prompt}\n{prompt}"
     return prompt
+
+
+def viewspatial_doc_to_messages(doc, lmms_eval_specific_kwargs: Optional[dict] = None):
+    """Convert document to messages for chat-based models.
+
+    Args:
+        doc (dict): A viewspatial dataset sample dictionary.
+        lmms_eval_specific_kwargs (dict, optional): Model-specific kwargs with pre_prompt/post_prompt.
+
+    Returns:
+        list[dict]: Messages in the chat protocol format.
+    """
+    imgs = viewspatial_doc_to_visual(doc)
+    text = viewspatial_doc_to_text(doc, lmms_eval_specific_kwargs)
+
+    messages = []
+    if lmms_eval_specific_kwargs:
+        system_prompt = lmms_eval_specific_kwargs.get("system_instruction") or lmms_eval_specific_kwargs.get("system_prompt")
+        if system_prompt:
+            messages.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
+
+    user_content = []
+    for img in imgs:
+        user_content.append({"type": "image", "url": img})
+    user_content.append({"type": "text", "text": text})
+
+    messages.append({"role": "user", "content": user_content})
+
+    return messages
 
 
 def viewspatial_doc_to_visual(doc):

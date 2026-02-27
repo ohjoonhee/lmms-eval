@@ -19,7 +19,7 @@ from lmms_eval.tasks.charxiv.reasoning_utils import (
 
 # get environment else return dummy values, in a single line
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "YOUR_OPENAI_BASE_URL")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "YOUR_MODEL_VERSION")
 
 client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
@@ -53,7 +53,7 @@ def charxiv_descriptive_process_docs(dataset: Dataset) -> Dataset:
         example[f"descriptive_a"] = example[f"descriptive_a{q_number}"]
         return {"qid": qid, **example}
 
-    dataset = dataset.map(_process_row, with_indices=True, num_proc=1)
+    dataset = dataset.map(_process_row, with_indices=True, num_proc=None)
     return dataset
 
 
@@ -131,7 +131,7 @@ def charxiv_reasoning_aggregate_results(results):
         resps[result["resp_key"]] = result["resp_value"]
     queries = build_reasoning_grading_queries(data, resps)
     for figure_id, query in tqdm(queries.items()):
-        ext, scr = get_reasoning_result_gpt(client, query["grading_query"])
+        ext, scr = get_reasoning_result_gpt(client, query["grading_query"], model=MODEL_VERSION)
         queries[figure_id]["extracted_answer"] = ext
         queries[figure_id]["score"] = scr
         queries[figure_id].pop("grading_query")

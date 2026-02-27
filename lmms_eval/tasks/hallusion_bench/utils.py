@@ -29,7 +29,9 @@ elif API_TYPE == "azure":
 from loguru import logger as eval_logger
 
 
-def evaluate_by_chatgpt(data, output_entry, correctness_entry, gpt_model="gpt-4", load_json=False, save_json_path="./hallusion_output.json", retries=3):
+def evaluate_by_chatgpt(data, output_entry, correctness_entry, gpt_model=None, load_json=False, save_json_path="./hallusion_output.json", retries=3):
+    if gpt_model is None:
+        gpt_model = os.getenv("MODEL_VERSION", "gpt-4")
     if load_json and os.path.exists(save_json_path):
         with open(save_json_path, "r") as f:
             output = json.load(f)
@@ -91,7 +93,9 @@ def evaluate_by_chatgpt(data, output_entry, correctness_entry, gpt_model="gpt-4"
     return output
 
 
-def check_same_by_chatgpt(data, output_entry, gpt_model="gpt-4", load_json=False, save_json_path="./hallusion_output.json", retries=3):
+def check_same_by_chatgpt(data, output_entry, gpt_model=None, load_json=False, save_json_path="./hallusion_output.json", retries=3):
+    if gpt_model is None:
+        gpt_model = os.getenv("MODEL_VERSION", "gpt-4")
     orig_response = {}
 
     for r in data:
