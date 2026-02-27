@@ -1,0 +1,5 @@
+task: "pix2fact"
+include: _default_template_yaml
+doc_to_visual: !function utils.pix2fact_doc_to_visual
+doc_to_text: !function utils.pix2fact_doc_to_text
+doc_to_messages: !function utils.pix2fact_doc_to_messages

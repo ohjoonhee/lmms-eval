@@ -1,0 +1,27 @@
+dataset_path: ohjoonhee/SimpleVQA
+dataset_kwargs:
+  token: True
+test_split: test
+output_type: generate_until
+doc_to_visual: !function utils.simplevqa_doc_to_visual
+doc_to_text: !function utils.simplevqa_doc_to_text
+doc_to_target: "{{answer}}"
+generation_kwargs:
+  max_new_tokens: 1024
+  temperature: 0.2
+  top_p: 1.0
+  num_beams: 1
+  do_sample: false
+process_results: !function utils.simplevqa_process_results
+metric_list:
+  - metric: simplevqa_is_correct
+    aggregation: !function utils.simplevqa_aggregate_is_correct
+    higher_is_better: true
+  - metric: simplevqa_accuracy_given_attempted
+    aggregation: !function utils.simplevqa_aggregate_accuracy_given_attempted
+    higher_is_better: true
+  - metric: simplevqa_f1
+    aggregation: !function utils.simplevqa_aggregate_f1
+    higher_is_better: true
+metadata:
+  version: 0.0

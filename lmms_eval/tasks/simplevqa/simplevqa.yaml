@@ -1,0 +1,16 @@
+group: simplevqa
+task:
+  - simplevqa_en
+  - simplevqa_cn
+aggregate_metric_list:
+  - metric: simplevqa_is_correct
+    aggregation: mean
+    weight_by_size: true
+  - metric: simplevqa_accuracy_given_attempted
+    aggregation: mean
+    weight_by_size: true
+  - metric: simplevqa_f1
+    aggregation: mean
+    weight_by_size: true
+metadata:
+  version: 0.0

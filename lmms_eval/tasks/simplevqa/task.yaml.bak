@@ -1,0 +1,42 @@
+dataset_path: ohjoonhee/SimpleVQA-EN
+dataset_kwargs:
+  token: True
+task: "simplevqa"
+test_split: test
+output_type: generate_until
+doc_to_visual: !function utils.simplevqa_doc_to_visual
+doc_to_text: !function utils.simplevqa_doc_to_text
+doc_to_target: "answer"
+process_results: !function utils.simplevqa_process_results
+
+generation_kwargs:
+  max_new_tokens: 1024
+  temperature: 0
+  top_p: 1.0
+  num_beams: 1
+  do_sample: false
+
+metric_list:
+  - metric: simplevqa_f1
+    aggregation: !function utils.simplevqa_aggregate_f1
+    higher_is_better: true
+  - metric: simplevqa_accuracy_given_attempted
+    aggregation: !function utils.simplevqa_aggregate_accuracy_given_attempted
+    higher_is_better: true
+  - metric: simplevqa_is_correct
+    aggregation: !function utils.simplevqa_aggregate_mean
+    higher_is_better: true
+  - metric: simplevqa_is_incorrect
+    aggregation: !function utils.simplevqa_aggregate_mean
+    higher_is_better: false
+  - metric: simplevqa_is_not_attempted
+    aggregation: !function utils.simplevqa_aggregate_mean
+    higher_is_better: false
+
+lmms_eval_specific_kwargs:
+  default:
+    pre_prompt: ""
+    post_prompt: "\nAnswer the question using a single word or phrase."
+
+metadata:
+  - version: 0.0
