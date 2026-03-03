@@ -118,16 +118,12 @@ def simplevqa_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 def _call_judge(prompt: str, patience: int = RETRY_TIMES) -> tuple[str, str]:
     """Call the LLM judge with retry logic."""
-    custom_config = ServerConfig(
-        model_name=MODEL_VERSION, temperature=1.0, max_tokens=256
-    )
+    custom_config = ServerConfig(model_name=MODEL_VERSION, temperature=1.0, max_tokens=256)
 
     while patience > 0:
         patience -= 1
         try:
-            request = Request(
-                messages=[{"role": "user", "content": prompt}], config=custom_config
-            )
+            request = Request(messages=[{"role": "user", "content": prompt}], config=custom_config)
             response = server.evaluate(request)
             content = response.content.strip() if response.content else ""
             if content:
@@ -170,9 +166,7 @@ def simplevqa_process_results(doc, results):
     answer = doc["answer"]
 
     candidates = f"\n[预测答案0]：{pred}"
-    prompt = SIMPLEVQA_JUDGE_PROMPT.format(
-        question=question, answer=answer, candidates=candidates
-    )
+    prompt = SIMPLEVQA_JUDGE_PROMPT.format(question=question, answer=answer, candidates=candidates)
 
     raw_response, model_name = _call_judge(prompt)
     judgment = _parse_judge_response(raw_response) if raw_response else "not_attempted"
@@ -217,9 +211,7 @@ def simplevqa_aggregate_accuracy_given_attempted(results: list[dict]) -> float:
     if n_attempted == 0:
         return 0.0
     score = n_correct / n_attempted
-    eval_logger.info(
-        f"SimpleVQA accuracy_given_attempted: {score:.4f} ({n_correct}/{n_attempted})"
-    )
+    eval_logger.info(f"SimpleVQA accuracy_given_attempted: {score:.4f} ({n_correct}/{n_attempted})")
     return score
 
 

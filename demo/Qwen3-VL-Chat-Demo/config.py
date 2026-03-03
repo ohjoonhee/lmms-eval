@@ -1,6 +1,15 @@
 import os
-from modelscope_studio.components.pro.chatbot import ChatbotActionConfig, ChatbotBotConfig, ChatbotUserConfig, ChatbotWelcomeConfig, ChatbotMarkdownConfig
-from modelscope_studio.components.pro.multimodal_input import MultimodalInputUploadConfig
+
+from modelscope_studio.components.pro.chatbot import (
+    ChatbotActionConfig,
+    ChatbotBotConfig,
+    ChatbotMarkdownConfig,
+    ChatbotUserConfig,
+    ChatbotWelcomeConfig,
+)
+from modelscope_studio.components.pro.multimodal_input import (
+    MultimodalInputUploadConfig,
+)
 
 # Env
 is_cn = False
@@ -114,9 +123,7 @@ def welcome_config():
                     "children": [
                         {
                             "urls": ["https://misc-assets.oss-cn-beijing.aliyuncs.com/Qwen/Qwen3-VL-Demo/c-1.png"],
-                            "description": get_text(
-                                "Create the webpage using HTML and CSS based on my sketch design. Color it in dark mode.", "基于我的草图设计，用 HTML 和 CSS 创建网页，并暗色模式下颜色。"
-                            ),
+                            "description": get_text("Create the webpage using HTML and CSS based on my sketch design. Color it in dark mode.", "基于我的草图设计，用 HTML 和 CSS 创建网页，并暗色模式下颜色。"),
                         },
                         {
                             "urls": ["https://misc-assets.oss-cn-beijing.aliyuncs.com/Qwen/Qwen3-VL-Demo/c-2.png"],

@@ -1,8 +1,10 @@
 import os
 import re
+
 from loguru import logger as eval_logger
+
+from lmms_eval.api.registry import METRIC_REGISTRY, register_metric
 from lmms_eval.llm_judge import Request, ServerConfig, get_server
-from lmms_eval.api.registry import register_metric, METRIC_REGISTRY
 
 # Initialize LLM Judge
 API_TYPE = os.getenv("API_TYPE", "openai")

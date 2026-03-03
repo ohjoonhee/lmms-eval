@@ -4,19 +4,19 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from accelerate import Accelerator, DistributedType
 from decord import VideoReader, cpu
 from loguru import logger as eval_logger
+from openai import OpenAI
 from PIL import Image
 from tqdm import tqdm
 
 from lmms_eval.api.instance import Instance
 from lmms_eval.api.model import lmms
 from lmms_eval.api.registry import register_model
-from openai import OpenAI
 
 try:
     from vllm import LLM, SamplingParams
@@ -252,7 +252,7 @@ class Qwen3BrainEyeVLLM(lmms):
                                 args = json.loads(tool_call.function.arguments)
                                 eye_query = args.get("question", "Describe the image.")
                                 eval_logger.info(f"Brain requested tool: {eye_query}")
-                                
+
                                 final_answer += "\n\n<tool_query>" + eye_query + "</tool_query>"
 
                                 # Prepare Eye messages
@@ -262,7 +262,7 @@ class Qwen3BrainEyeVLLM(lmms):
                                 eye_messages[0]["content"].append({"type": "text", "text": eye_query})
 
                                 # Eye generation params
-                                eye_params = SamplingParams(max_tokens=512, temperature=0.7, top_p=0.8, top_k=20, presence_penalty=1.5, repetition_penalty=1.0) 
+                                eye_params = SamplingParams(max_tokens=512, temperature=0.7, top_p=0.8, top_k=20, presence_penalty=1.5, repetition_penalty=1.0)
 
                                 # Eye Pass
                                 eye_output = self.eye_llm.chat(messages=eye_messages, sampling_params=eye_params)

@@ -12,9 +12,9 @@ Token Logprob Heatmap — JSONL + D3 Graph Tooltip
 import argparse
 import json
 import os
-from typing import List, Dict, Any, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from flask import Flask, render_template_string, abort, redirect, url_for
+from flask import Flask, abort, redirect, render_template_string, url_for
 from markupsafe import escape
 
 app = Flask(__name__)

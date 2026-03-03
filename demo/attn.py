@@ -30,11 +30,19 @@ Dependencies
 """
 
 from __future__ import annotations
+
 import argparse
 import os
 from typing import Any, Dict, List, Optional
 
-from flask import Flask, jsonify, request, render_template_string, abort, send_from_directory
+from flask import (
+    Flask,
+    abort,
+    jsonify,
+    render_template_string,
+    request,
+    send_from_directory,
+)
 
 try:
     import torch

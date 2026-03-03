@@ -1,9 +1,9 @@
 import asyncio
 import json
 
+import dotenv
 from datasets import load_from_disk
 from openai import AsyncOpenAI
-import dotenv
 
 dotenv.load_dotenv()
 
@@ -68,10 +68,7 @@ def main():
     # Also build the full answer_captions column
     def add_columns(example, idx):
         obj_info = json.loads(example["objects_info_json"])
-        example["answer_captions"] = [
-            obj_info.get(str(oid), {}).get("caption", "")
-            for oid in example["human_labeled_a_objs"]
-        ]
+        example["answer_captions"] = [obj_info.get(str(oid), {}).get("caption", "") for oid in example["human_labeled_a_objs"]]
         example["answer_labels"] = simplified[idx]
         return example
 

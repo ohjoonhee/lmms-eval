@@ -22,9 +22,7 @@ def _get_judge() -> Tuple[ServerInterface, ServerConfig]:
     if _server is None:
         api_type = os.getenv("API_TYPE", "openai")
         model = os.getenv("MODEL_VERSION", "gpt-4o-2024-11-20")
-        _server_config = ServerConfig(
-            model_name=model, temperature=0.0, max_tokens=1024
-        )
+        _server_config = ServerConfig(model_name=model, temperature=0.0, max_tokens=1024)
         _server = get_server(server_name=api_type, config=_server_config)
     return _server, _server_config
 
@@ -94,9 +92,7 @@ def pix2fact_doc_to_visual(doc: dict) -> list:
     return [doc["image"].convert("RGB")]
 
 
-def pix2fact_doc_to_text(
-    doc: dict, lmms_eval_specific_kwargs: dict | None = None
-) -> str:
+def pix2fact_doc_to_text(doc: dict, lmms_eval_specific_kwargs: dict | None = None) -> str:
     """Build the text prompt for the model.
 
     By default uses the official Pix2Fact prompt template. When *pre_prompt*
@@ -118,9 +114,7 @@ def pix2fact_doc_to_text(
     return f"{PROMPT_TEMPLATE}\nInput Question: {question}\nInput Image: "
 
 
-def pix2fact_doc_to_messages(
-    doc: dict, lmms_eval_specific_kwargs: dict | None = None
-) -> list:
+def pix2fact_doc_to_messages(doc: dict, lmms_eval_specific_kwargs: dict | None = None) -> list:
     """Build chat messages with interleaved image and text for chat models."""
     imgs = pix2fact_doc_to_visual(doc)
     text = pix2fact_doc_to_text(doc, lmms_eval_specific_kwargs)
@@ -129,13 +123,9 @@ def pix2fact_doc_to_messages(
 
     # Optional system instruction
     if lmms_eval_specific_kwargs:
-        system_prompt = lmms_eval_specific_kwargs.get(
-            "system_instruction"
-        ) or lmms_eval_specific_kwargs.get("system_prompt")
+        system_prompt = lmms_eval_specific_kwargs.get("system_instruction") or lmms_eval_specific_kwargs.get("system_prompt")
         if system_prompt:
-            messages.append(
-                {"role": "system", "content": [{"type": "text", "text": system_prompt}]}
-            )
+            messages.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
 
     user_content: list[dict] = []
     for img in imgs:

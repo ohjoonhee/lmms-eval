@@ -13,14 +13,10 @@ API_TYPE = os.getenv("API_TYPE", "openai")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "gpt-4o-2024-11-20")
 
 try:
-    server_config = ServerConfig(
-        model_name=MODEL_VERSION, temperature=0.0, max_tokens=1024
-    )
+    server_config = ServerConfig(model_name=MODEL_VERSION, temperature=0.0, max_tokens=1024)
     server = get_server(server_name=API_TYPE, config=server_config)
 except Exception as e:
-    eval_logger.warning(
-        f"Failed to initialize LLM Judge: {e}. LLM Judge metric will fail if used."
-    )
+    eval_logger.warning(f"Failed to initialize LLM Judge: {e}. LLM Judge metric will fail if used.")
     server = None
 
 # Official WorldVQA judge prompt from:
@@ -169,13 +165,9 @@ def worldvqa_doc_to_messages(doc, lmms_eval_specific_kwargs=None):
 
     messages = []
     if lmms_eval_specific_kwargs:
-        system_prompt = lmms_eval_specific_kwargs.get(
-            "system_instruction"
-        ) or lmms_eval_specific_kwargs.get("system_prompt")
+        system_prompt = lmms_eval_specific_kwargs.get("system_instruction") or lmms_eval_specific_kwargs.get("system_prompt")
         if system_prompt:
-            messages.append(
-                {"role": "system", "content": [{"type": "text", "text": system_prompt}]}
-            )
+            messages.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
 
     user_content = []
     for img in imgs:
@@ -209,9 +201,7 @@ def _judge_evaluate(question: str, ground_truth: str, prediction: str) -> str:
         One of "correct", "incorrect", or "unattempted".
     """
     if server is None:
-        eval_logger.warning(
-            "LLM Judge not initialized. Returning 'incorrect' by default."
-        )
+        eval_logger.warning("LLM Judge not initialized. Returning 'incorrect' by default.")
         return "incorrect"
 
     prompt = JUDGE_WORLDQA_PROMPT.format(
@@ -221,9 +211,7 @@ def _judge_evaluate(question: str, ground_truth: str, prediction: str) -> str:
     )
 
     try:
-        request = Request(
-            messages=[{"role": "user", "content": prompt}], config=server_config
-        )
+        request = Request(messages=[{"role": "user", "content": prompt}], config=server_config)
         response = server.evaluate(request)
         if response.success:
             content = response.content
@@ -312,9 +300,7 @@ def worldvqa_aggregate_results(results: list[dict]) -> float:
         scores = difficulty_scores.get(diff, [])
         if scores:
             acc = sum(scores) / len(scores) * 100.0
-            eval_logger.info(
-                f"  {diff.capitalize()}: {acc:.2f}% = {int(sum(scores))}/{len(scores)}"
-            )
+            eval_logger.info(f"  {diff.capitalize()}: {acc:.2f}% = {int(sum(scores))}/{len(scores)}")
 
     # Log category breakdown
     eval_logger.info("WorldVQA Results by Category:")
@@ -338,8 +324,6 @@ def worldvqa_aggregate_results(results: list[dict]) -> float:
 
     # Overall accuracy
     overall_acc = sum(all_scores) / len(all_scores) * 100.0
-    eval_logger.info(
-        f"WorldVQA Overall: {overall_acc:.2f}% = {int(sum(all_scores))}/{len(all_scores)}"
-    )
+    eval_logger.info(f"WorldVQA Overall: {overall_acc:.2f}% = {int(sum(all_scores))}/{len(all_scores)}")
 
     return overall_acc

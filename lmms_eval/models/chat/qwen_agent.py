@@ -1,10 +1,10 @@
-from typing import List, Optional, Union, Tuple
-import os
 import base64
+import os
+import shutil
 import tempfile
 import uuid
-import shutil
 from io import BytesIO
+from typing import List, Optional, Tuple, Union
 
 from loguru import logger as eval_logger
 from PIL import Image
@@ -18,7 +18,14 @@ from lmms_eval.protocol import ChatMessages
 try:
     from qwen_agent.agents import Assistant
     from qwen_agent.llm.schema import ASSISTANT, FUNCTION
-    from qwen_agent.utils.output_beautify import TOOL_CALL_S, TOOL_CALL_E, TOOL_RESULT_S, TOOL_RESULT_E, THOUGHT_S, ANSWER_S
+    from qwen_agent.utils.output_beautify import (
+        ANSWER_S,
+        THOUGHT_S,
+        TOOL_CALL_E,
+        TOOL_CALL_S,
+        TOOL_RESULT_E,
+        TOOL_RESULT_S,
+    )
 except ImportError:
     eval_logger.warning("Failed to import qwen_agent; Please install it via `pip install qwen-agent`")
 

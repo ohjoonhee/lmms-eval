@@ -3,8 +3,7 @@ import time
 
 import pandas as pd
 from loguru import logger as eval_logger
-from openai import AzureOpenAI, OpenAI
-from openai import Client
+from openai import AzureOpenAI, Client, OpenAI
 from tqdm import tqdm
 
 from lmms_eval.llm_judge import ServerConfig, get_server

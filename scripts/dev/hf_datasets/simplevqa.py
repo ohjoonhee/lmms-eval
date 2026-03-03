@@ -1,8 +1,9 @@
-from datasets import load_dataset
-import datasets
-from PIL import Image
-import io
 import base64
+import io
+
+import datasets
+from datasets import load_dataset
+from PIL import Image
 
 ds = load_dataset("m-a-p/SimpleVQA", split="test")
 print(ds)

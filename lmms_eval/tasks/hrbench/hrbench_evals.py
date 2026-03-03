@@ -89,7 +89,7 @@ class HRBenchEval:
         messages = [
             {"role": "user", "content": prompt},
         ]
-        
+
         # Create config for this specific request
         config = ServerConfig(model_name=self.gpt_model, temperature=temperature, max_tokens=max_tokens)
         request = Request(messages=messages, config=config)

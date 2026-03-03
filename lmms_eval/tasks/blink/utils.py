@@ -76,16 +76,12 @@ def _get_judge_response(
     patience: int = 3,
     sleep_time: float = 5.0,
 ) -> tuple[str, str]:
-    custom_config = ServerConfig(
-        model_name=model, temperature=temperature, max_tokens=max_tokens
-    )
+    custom_config = ServerConfig(model_name=model, temperature=temperature, max_tokens=max_tokens)
 
     while patience > 0:
         patience -= 1
         try:
-            request = Request(
-                messages=[{"role": "user", "content": prompt}], config=custom_config
-            )
+            request = Request(messages=[{"role": "user", "content": prompt}], config=custom_config)
             response = server.evaluate(request)
             content = response.content.strip() if response.content else ""
             if content != "":
@@ -108,9 +104,7 @@ def _build_judge_prompt(doc: Dict, response: str) -> str:
     # Build option list for context
     choices = doc["choices"]
     option_labels = ["A", "B", "C", "D", "E"]
-    options_text = "\n".join(
-        f"({label}) {choice}" for label, choice in zip(option_labels[: len(choices)], choices)
-    )
+    options_text = "\n".join(f"({label}) {choice}" for label, choice in zip(option_labels[: len(choices)], choices))
 
     return (
         "You are a strict evaluator for a multiple-choice visual question answering task. "
@@ -156,13 +150,9 @@ def blink_process_results(doc: Dict, result: List[str]) -> Dict[str, Dict]:
             if score in (0, 1):
                 judge_score = float(score)
             else:
-                eval_logger.warning(
-                    f"Unexpected judge score '{judge_content}' for doc {doc['idx']}, defaulting to 0."
-                )
+                eval_logger.warning(f"Unexpected judge score '{judge_content}' for doc {doc['idx']}, defaulting to 0.")
         except (ValueError, IndexError):
-            eval_logger.warning(
-                f"Failed to parse judge response '{judge_content}' for doc {doc['idx']}, defaulting to 0."
-            )
+            eval_logger.warning(f"Failed to parse judge response '{judge_content}' for doc {doc['idx']}, defaulting to 0.")
     else:
         eval_logger.warning(f"Empty judge response for doc {doc['idx']}, defaulting to 0.")
 

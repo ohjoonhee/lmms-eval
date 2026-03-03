@@ -1,12 +1,13 @@
-import math
-import io
 import base64
+import io
+import math
+import os
 from typing import List, Optional
+
+import requests
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent
 from PIL import Image
-import os
-import requests
 
 app = FastMCP("qwen-image-tools")
 

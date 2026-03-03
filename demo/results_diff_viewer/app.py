@@ -124,13 +124,15 @@ def load_files():
     state["fields1"] = collect_fields(state["data1"])
     state["fields2"] = collect_fields(state["data2"])
 
-    return jsonify({
-        "count": len(common_ids),
-        "fields1": state["fields1"],
-        "fields2": state["fields2"],
-        "total1": len(state["data1"]),
-        "total2": len(state["data2"]),
-    })
+    return jsonify(
+        {
+            "count": len(common_ids),
+            "fields1": state["fields1"],
+            "fields2": state["fields2"],
+            "total1": len(state["data1"]),
+            "total2": len(state["data2"]),
+        }
+    )
 
 
 @app.route("/api/sample/<int:index>")
@@ -139,13 +141,15 @@ def get_sample(index: int):
     if not ids or index < 0 or index >= len(ids):
         return jsonify({"error": "Index out of range"}), 400
     doc_id = ids[index]
-    return jsonify({
-        "index": index,
-        "total": len(ids),
-        "doc_id": doc_id,
-        "left": state["data1"].get(doc_id, {}),
-        "right": state["data2"].get(doc_id, {}),
-    })
+    return jsonify(
+        {
+            "index": index,
+            "total": len(ids),
+            "doc_id": doc_id,
+            "left": state["data1"].get(doc_id, {}),
+            "right": state["data2"].get(doc_id, {}),
+        }
+    )
 
 
 @app.route("/api/filter", methods=["POST"])
